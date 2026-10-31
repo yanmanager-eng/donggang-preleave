@@ -21,8 +21,8 @@ button{cursor:pointer;font-weight:650}.primary{background:#183b32;color:#fff;bor
 table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:9px 6px;border-bottom:1px solid #e6eaed;vertical-align:top}th{color:#53616c;font-weight:600}
 .entry{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:11px 0;border-bottom:1px solid #edf0f2}.entry:last-child{border-bottom:0}.entry strong{display:block}.entry small{display:block;color:#68737d;margin-top:4px}
 .alert{background:#fff6e5;color:#79521b;padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.5}
-.monthcal{margin-top:12px}.calday{border:1px solid #e2e7ea;border-radius:9px;min-height:100px;padding:5px;background:#fff;text-align:left;overflow:hidden}.calday.blank{background:transparent;border-color:transparent}.calday.today{border:2px solid #183b32}.calnum{font-size:12px;font-weight:800;color:#39434b;margin-bottom:4px}.calnote{font-size:10px;line-height:1.35;border-radius:5px;padding:4px;margin:3px 0;overflow-wrap:anywhere}.calnote.approved{background:#e4f6e9;color:#17653a;border-left:3px solid #31975a}.calnote.pending{background:#fff1d1;color:#79521b;border-left:3px solid #d78b30}.calnote .calstatus{font-weight:800;display:block}.legend{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.legend span{font-size:12px;padding:5px 8px;border-radius:7px}.legend .lapproved{background:#e4f6e9;color:#17653a}.legend .lpending{background:#fff1d1;color:#79521b}
-@media(max-width:600px){.calday{min-height:78px;padding:3px}.calnote{font-size:9px;padding:3px}.calnum{font-size:11px}.grid{gap:3px}}
+.monthcal{margin-top:12px}.calday{border:1px solid #e2e7ea;border-radius:9px;min-height:72px;padding:4px 3px;background:#fff;text-align:left;overflow:hidden}.calday.blank{background:transparent;border-color:transparent}.calday.today{border:2px solid #183b32}.calnum{font-size:11px;font-weight:800;color:#39434b;margin-bottom:3px}.calnames{display:flex;flex-direction:column;gap:2px}.calname{font-size:13px;font-weight:800;line-height:1.2;border-radius:4px;padding:3px 2px;text-align:center;letter-spacing:.04em}.calname .per{font-size:10px;font-weight:700;margin-left:1px}.calname.approved{background:#e4f6e9;color:#17653a}.calname.pending{background:#fff1d1;color:#79521b}.legend{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.legend span{font-size:12px;padding:5px 8px;border-radius:7px}.legend .lapproved{background:#e4f6e9;color:#17653a}.legend .lpending{background:#fff1d1;color:#79521b}
+@media(max-width:600px){.calday{min-height:64px;padding:3px 2px}.calname{font-size:12px;padding:2px 1px}.calnum{font-size:10px}.grid{gap:3px}}
 @media(max-width:480px){body{padding:10px 8px 28px}.card{padding:12px}.day{min-height:53px}.day small{font-size:9px}.grid{gap:3px}header{padding:17px}}
 </style>
 <meta name="zdos-supabase-url" content="https://ulbaleegutbiyxctqrth.supabase.co">
@@ -99,6 +99,8 @@ function mapRecord(r){return {id:r.id,name:r.employee_name,date:r.leave_date,per
 async function refreshRecords(client=cloudClient){const {data,error}=await client.from('dg_preleave_requests').select('id,employee_name,leave_date,leave_period,reason,status,submitted_at,reviewed_by,reviewed_at').eq('store_id',STORE_ID).order('leave_date').order('submitted_at');if(error)throw error;records=(data||[]).map(mapRecord);cloudReady=true;renderAll()}
 async function save(){renderAll()}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function shortName(name){const base=String(name||'').replace(/[（(].*?[）)]/g,'').trim();if(base.length<=2)return base||String(name||'').trim();return base.slice(-2)}
+function periodMark(period){return period==='上午'?'上':period==='下午'?'下':''}
 function shiftOf(name){return people.find(s=>s.name===name)?.shift||'待確認'}
 function dateFmt(s){const [y,m,d]=s.split('-');return `${y}/${m}/${d}`}
 function statusName(s){return ({pending:'待審核',approved:'已核准',rejected:'已退回'})[s]||s}
@@ -123,16 +125,18 @@ function populate(){
 function renderCalendar(){
  const mon=$('overviewMonth').value||monthNow; const [yy,mm]=mon.split('-').map(Number);
  const first=new Date(yy,mm-1,1), days=new Date(yy,mm,0).getDate(), offset=first.getDay();
- const byDate={}; records.filter(r=>r.date.startsWith(mon)&&r.status!=='rejected').forEach(r=>(byDate[r.date]??=[]).push(r));
+ const filter=$('filterShift').value;
+ const byDate={}; records.filter(r=>r.date.startsWith(mon)&&r.status!=='rejected'&&(filter==='全部'||shiftOf(r.name)===filter)).forEach(r=>(byDate[r.date]??=[]).push(r));
  const headers=['日','一','二','三','四','五','六']; let html=headers.map(d=>`<div class="dow">${d}</div>`).join('');
  for(let i=0;i<offset;i++)html+='<div class="calday blank" aria-hidden="true"></div>';
  const today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
  for(let d=1;d<=days;d++){
   const date=`${yy}-${pad(mm)}-${pad(d)}`, list=(byDate[date]||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
-  html+=`<div class="calday ${date===today?'today':''}"><div class="calnum">${d} 日</div>${list.length?list.map(r=>`<div class="calnote ${r.status==='approved'?'approved':'pending'}"><span class="calstatus">${r.status==='approved'?'✓ 已核准':'◷ 未核准'}</span><strong>${esc(r.name)}</strong><br>${esc(shiftOf(r.name))}｜${esc(r.period)}</div>`).join(''):'<div style="font-size:10px;color:#9aa3aa">—</div>'}</div>`;
+  const names=list.map(r=>{const mark=periodMark(r.period);const title=`${r.name}｜${shiftOf(r.name)}｜${r.period}｜${statusName(r.status)}`;return `<div class="calname ${r.status==='approved'?'approved':'pending'}" title="${esc(title)}">${esc(shortName(r.name))}${mark?`<span class="per">${mark}</span>`:''}</div>`}).join('');
+  html+=`<div class="calday ${date===today?'today':''}"><div class="calnum">${d}</div>${names?`<div class="calnames">${names}</div>`:''}</div>`;
  }
- while((offset+days)%7!==0)html+='<div class="calday blank" aria-hidden="true"></div>';
- $('calendar').innerHTML=`<div class="grid">${html}</div><p class="hint">整月班表：綠色代表已核准，黃色代表尚未核准。每筆註記包含員工姓名、班別與預排時段；退回的申請不列入月曆。</p>`;
+ let blank=0; while((offset+days+blank)%7!==0){html+='<div class="calday blank" aria-hidden="true"></div>';blank++}
+ $('calendar').innerHTML=`<div class="grid">${html}</div><p class="hint">整月班表直接寫在日期格子裡。例如 11/1 顏志添休，該格顯示「志添」。全天只寫名字；上午、下午會加「上」「下」。綠色已核准、黃色待審核。退回不列入。完整姓名仍在下方明細。</p>`;
 }
 function renderSelection(){$('selection').textContent=selected.length?`已選日期：${selected.map(dateFmt).join('、')}（${selected.length}/2 天）`:'尚未選擇日期。'}
 function msg(t,bad){$('message').textContent=t||'請選擇員工與日期。';$('message').className='status'+(bad?' bad':t?' ok':'')}
@@ -253,7 +257,8 @@ $('managerPassword').addEventListener('keydown',e=>{if(e.key==='Enter')managerLo
 $('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderManage()});
 $('submit').addEventListener('click',submit);
 $('clear').addEventListener('click',()=>{$('employee').value='';$('date1').value='';$('date2').value='';$('reason').value='';msg('已清空欄位。')});
-$('overviewMonth').addEventListener('change',renderOverview);$('filterShift').addEventListener('change',renderOverview);
+$('overviewMonth').addEventListener('input',rerenderLeaveMonth);$('overviewMonth').addEventListener('change',rerenderLeaveMonth);$('filterShift').addEventListener('change',rerenderLeaveMonth);
+function rerenderLeaveMonth(){renderCalendar();renderOverview()}
 $('export').addEventListener('click',()=>{if(!managerVerified)return;download('zdos-dg-preleave-backup.json',JSON.stringify({version:1,staff:people,records},null,2),'application/json')});
 $('csv').addEventListener('click',()=>{if(!managerVerified)return;const rows=[['日期','員工','班別','時段','狀態','備註'],...records.map(r=>[r.date,r.name,shiftOf(r.name),r.period,statusName(r.status),r.reason||''])];download('zdos-dg-preleave.csv','\ufeff'+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n'),'text/csv;charset=utf-8')});
 $('import').addEventListener('change',async e=>{

@@ -31,6 +31,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
 .calpop strong{display:block;margin-top:2px;font-size:16px}
 .calpop-meta{margin-top:4px;font-size:13px}
 .calpop-note{margin-top:6px;font-size:12px;color:#52606b}
+#managerPanel[hidden],#managerLogin[hidden]{display:none !important}
 </style>
 <meta name="zdos-supabase-url" content="https://ulbaleegutbiyxctqrth.supabase.co">
 <meta name="zdos-supabase-anon-key" content="sb_publishable_S4mqjBsV_5NILsEVB8g1lg_OQAciXcO">
@@ -38,6 +39,14 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
 </head>
 <body>
 <header><h1>東港店｜員工預排假</h1><p>獨立操作版 · 日期選擇、撞假檢查、全員預排總覽</p></header>
+<div class="card">
+<h2>全體員工預排假總覽</h2>
+<div class="row"><div class="field"><label for="overviewMonth">查看月份</label><input id="overviewMonth" type="month"></div><div class="field"><label for="filterShift">班別篩選</label><select id="filterShift"><option value="全部">全部班別</option><option value="早班">早班</option><option value="中班">中班</option><option value="晚班">晚班</option><option value="待確認">待確認</option></select></div></div>
+<div class="legend"><span class="lapproved">綠色：已核准</span><span class="lpending">黃色：未核准／待審核</span></div>
+<div id="calendar" class="monthcal" aria-live="polite"></div>
+<div id="calpop" class="calpop" hidden role="dialog" aria-label="預排假明細"></div>
+<h3 style="font-size:15px;margin:18px 0 8px">本月預排假明細</h3><div id="overview"></div>
+</div>
 <div class="card">
 <h2>直接填寫預排假</h2>
 <div class="row">
@@ -54,19 +63,10 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
 <div id="message" class="status" style="margin-top:10px" role="status">請填寫姓名及至少一個日期。</div>
 </div>
 <div class="card">
-<h2>② 全體員工預排假總覽</h2>
-<div class="row"><div class="field"><label for="overviewMonth">查看月份</label><input id="overviewMonth" type="month"></div><div class="field"><label for="filterShift">班別篩選</label><select id="filterShift"><option value="全部">全部班別</option><option value="早班">早班</option><option value="中班">中班</option><option value="晚班">晚班</option><option value="待確認">待確認</option></select></div></div>
-<div class="legend"><span class="lapproved">綠色：已核准</span><span class="lpending">黃色：未核准／待審核</span></div>
-<div id="calendar" class="monthcal" aria-live="polite"></div>
-<div id="calpop" class="calpop" hidden role="dialog" aria-label="預排假明細"></div>
-<h3 style="font-size:15px;margin:18px 0 8px">本月預排假明細</h3><div id="overview"></div>
-</div>
-<div class="card">
-<h2>③ 幹部管理</h2>
-<p class="hint">此處使用與 ZDOS 正式系統相同的雲端工號／密碼驗證（AUTH-004）。請輸入新工號（例如店別2碼＋班別2碼＋年2碼＋流水2碼）；舊工號已停用。幹部登入後可新增假、取消已核准的假，以及核准、退回與刪除。</p>
+<h2>幹部管理</h2>
 <div id="managerLogin">
  <div class="row"><div class="field"><label for="managerEmpNo">ZDOS 工號</label><input id="managerEmpNo" autocomplete="username" placeholder="輸入 ZDOS 工號"></div><div class="field"><label for="managerPassword">ZDOS 密碼</label><input id="managerPassword" type="password" autocomplete="current-password" placeholder="輸入 ZDOS 密碼"></div></div>
- <div class="row" style="margin-top:10px"><button id="managerLoginBtn" class="primary">驗證並開啟幹部管理</button></div><div id="managerAuthMessage" class="status" style="margin-top:10px" role="status">請使用既有 ZDOS 帳號登入。</div>
+ <div class="row" style="margin-top:10px"><button id="managerLoginBtn" class="primary">登入</button></div><div id="managerAuthMessage" class="status" style="margin-top:10px" role="status">登入後才能新增假、取消假與審核。</div>
 </div>
 <div id="managerPanel" hidden>
  <div class="status ok" id="managerIdentity" style="margin-bottom:10px"></div>
@@ -85,11 +85,10 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
  <div id="mgrAddMessage" class="status" style="margin-top:10px" role="status">選擇員工與日期後即可新增。</div>
  <h3 style="font-size:15px;margin:16px 0 8px">申請紀錄</h3>
  <div id="manage"></div>
+ <h3 style="font-size:15px;margin:16px 0 8px">班別設定</h3>
+ <p class="hint">可依實際人力調整班別。預設為先前提供的東港店時段；班別待確認者不會被歸入特定班別，但仍受全店同日最多 2 人限制。</p>
+ <div id="roster"></div>
 </div>
-</div>
-<div class="card">
-<h2>班別設定</h2><p class="hint">可依實際人力調整班別。預設為先前提供的東港店時段；班別待確認者不會被歸入特定班別，但仍受全店同日最多 2 人限制。</p>
-<div id="roster"></div>
 </div>
 <script>
 (function(){
@@ -319,7 +318,7 @@ async function managerLogin(){
  }catch(e){
   try{if(managerClient)await managerClient.auth.signOut()}catch(_){}
   managerVerified=false;managerUser=null;msg.textContent=e.message||'登入失敗，請稍後再試。';msg.className='status bad';
- }finally{btn.disabled=false;btn.textContent='驗證並開啟幹部管理'}
+ }finally{btn.disabled=false;btn.textContent='登入'}
 }
 $('managerLoginBtn').addEventListener('click',managerLogin);
 $('managerPassword').addEventListener('keydown',e=>{if(e.key==='Enter')managerLogin()});

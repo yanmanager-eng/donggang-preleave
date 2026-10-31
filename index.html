@@ -63,7 +63,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
 </div>
 <div class="card">
 <h2>③ 幹部管理</h2>
-<p class="hint">此處使用與 ZDOS 正式系統相同的雲端工號／密碼驗證（AUTH-004）。請輸入新工號（例如店別2碼＋班別2碼＋年2碼＋流水2碼）；舊工號已停用。只有具備東港店權限的幹部可核准、退回與刪除。</p>
+<p class="hint">此處使用與 ZDOS 正式系統相同的雲端工號／密碼驗證（AUTH-004）。請輸入新工號（例如店別2碼＋班別2碼＋年2碼＋流水2碼）；舊工號已停用。幹部登入後可新增假、取消已核准的假，以及核准、退回與刪除。</p>
 <div id="managerLogin">
  <div class="row"><div class="field"><label for="managerEmpNo">ZDOS 工號</label><input id="managerEmpNo" autocomplete="username" placeholder="輸入 ZDOS 工號"></div><div class="field"><label for="managerPassword">ZDOS 密碼</label><input id="managerPassword" type="password" autocomplete="current-password" placeholder="輸入 ZDOS 密碼"></div></div>
  <div class="row" style="margin-top:10px"><button id="managerLoginBtn" class="primary">驗證並開啟幹部管理</button></div><div id="managerAuthMessage" class="status" style="margin-top:10px" role="status">請使用既有 ZDOS 帳號登入。</div>
@@ -71,6 +71,19 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
 <div id="managerPanel" hidden>
  <div class="status ok" id="managerIdentity" style="margin-bottom:10px"></div>
  <div class="row"><button id="managerLogout" class="secondary">登出管理</button><button id="export" class="secondary">匯出 JSON 備份</button><button id="csv" class="secondary">匯出 CSV</button><label class="secondary" style="display:block;text-align:center;cursor:pointer;border:1px solid #d7e2dc;border-radius:10px;padding:11px;flex:1">匯入 JSON 備份<input id="import" type="file" accept=".json,application/json" style="display:none"></label></div>
+ <h3 style="font-size:15px;margin:16px 0 8px">新增假</h3>
+ <p class="hint">幹部直接排入的假會立即核准，並出現在月曆。仍受同日最多 2 人、同班別不得同休、每人每月最多 2 天限制。</p>
+ <div class="row">
+  <div class="field"><label for="mgrEmployee">員工</label><select id="mgrEmployee"></select></div>
+  <div class="field"><label for="mgrPeriod">時段</label><select id="mgrPeriod"><option value="全天">全天</option><option value="上午">上午</option><option value="下午">下午</option></select></div>
+ </div>
+ <div class="row" style="margin-top:10px">
+  <div class="field"><label for="mgrDate">日期</label><input id="mgrDate" type="date"></div>
+  <div class="field"><label for="mgrReason">備註（選填）</label><input id="mgrReason" maxlength="80" placeholder="例如：幹部代排"></div>
+ </div>
+ <div class="row" style="margin-top:10px"><button id="mgrAdd" class="primary">新增假</button></div>
+ <div id="mgrAddMessage" class="status" style="margin-top:10px" role="status">選擇員工與日期後即可新增。</div>
+ <h3 style="font-size:15px;margin:16px 0 8px">申請紀錄</h3>
  <div id="manage"></div>
 </div>
 </div>
@@ -127,6 +140,7 @@ function conflicts(name,date,period,ignoreId=null){
 }
 function populate(){
  $('staffNames').innerHTML=people.map(s=>`<option value="${esc(s.name)}"></option>`).join('');
+ $('mgrEmployee').innerHTML=people.map(s=>`<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
  $('roster').innerHTML=people.map((s,i)=>`<div class="entry"><div><strong>${esc(s.name)}</strong><small>${esc(s.time)}</small></div><div style="min-width:130px"><select data-shift="${i}" aria-label="${esc(s.name)}班別"><option ${s.shift==='早班'?'selected':''}>早班</option><option ${s.shift==='中班'?'selected':''}>中班</option><option ${s.shift==='晚班'?'selected':''}>晚班</option><option ${s.shift==='待確認'?'selected':''}>待確認</option></select></div></div>`).join('');
  $('roster').querySelectorAll('select').forEach(sel=>sel.addEventListener('change',()=>{people[Number(sel.dataset.shift)].shift=sel.value;renderAll()}));
 }
@@ -194,16 +208,41 @@ function renderOverview(){
  if(!dates.length){$('overview').innerHTML='<p class="hint">本月尚無預排假紀錄。</p>';return}
  $('overview').innerHTML=dates.map(date=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(date)} · ${byDate[date].length}/2 人</strong><div class="pills" style="margin-top:7px">${byDate[date].map(r=>`<span class="pill ${r.status}">${esc(r.name)}｜${esc(r.period)}｜${statusName(r.status)}（${esc(shiftOf(r.name))}）</span>`).join('')}</div></div></div>`).join('');
 }
+function mgrMsg(t,bad){const el=$('mgrAddMessage');if(!el)return;el.textContent=t;el.className='status'+(bad?' bad':t?' ok':'')}
+async function managerAddLeave(){
+ if(!managerVerified||!managerClient){mgrMsg('請先登入幹部管理。',true);return}
+ const name=$('mgrEmployee').value.trim(), date=$('mgrDate').value, period=$('mgrPeriod').value, reason=$('mgrReason').value.trim();
+ if(!name){mgrMsg('請選擇員工。',true);return}
+ if(!date){mgrMsg('請選擇日期。',true);return}
+ const blocked=conflicts(name,date,period);
+ if(blocked){mgrMsg(blocked,true);return}
+ const btn=$('mgrAdd');
+ btn.disabled=true;
+ try{
+  const row={store_id:STORE_ID,employee_name:name,leave_date:date,leave_period:period,reason,status:'pending'};
+  const {data,error}=await managerClient.from('dg_preleave_requests').insert(row).select('id');
+  if(error)throw error;
+  const id=data&&data[0]&&data[0].id;
+  if(!id)throw new Error('已建立申請，但沒有取得編號，請在下方清單按核准。');
+  const {error:approveError}=await managerClient.from('dg_preleave_requests').update({status:'approved',reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',id).eq('store_id',STORE_ID);
+  if(approveError)throw approveError;
+  await refreshRecords(managerClient);
+  $('mgrDate').value='';$('mgrReason').value='';
+  mgrMsg(`已新增並核准：${name} ${dateFmt(date)} ${period}。`);
+ }catch(e){mgrMsg('新增失敗：'+(e.message||'請稍後再試'),true)}
+ finally{btn.disabled=false}
+}
 function renderManage(){
  if(!managerVerified){$('manage').innerHTML='';return}
  const arr=records.slice().sort((a,b)=>b.date.localeCompare(a.date));
  if(!arr.length){$('manage').innerHTML='<p class="hint">目前沒有申請紀錄。</p>';return}
- $('manage').innerHTML=arr.map(r=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(r.date)} · ${esc(r.name)}</strong><small>${esc(r.period)}｜${esc(shiftOf(r.name))}${r.reason?'｜備註：'+esc(r.reason):''}</small><span class="pill ${r.status}">${statusName(r.status)}</span></div><div style="display:flex;flex-direction:column;gap:5px;min-width:86px">${r.status==='pending'?`<button class="secondary" data-action="approved" data-id="${r.id}">核准</button><button class="danger" data-action="rejected" data-id="${r.id}">退回</button>`:''}<button class="danger" data-action="delete" data-id="${r.id}">刪除</button></div></div>`).join('');
+ $('manage').innerHTML=arr.map(r=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(r.date)} · ${esc(r.name)}</strong><small>${esc(r.period)}｜${esc(shiftOf(r.name))}${r.reason?'｜備註：'+esc(r.reason):''}</small><span class="pill ${r.status}">${statusName(r.status)}</span></div><div style="display:flex;flex-direction:column;gap:5px;min-width:86px">${r.status==='pending'?`<button class="secondary" data-action="approved" data-id="${r.id}">核准</button><button class="danger" data-action="rejected" data-id="${r.id}">退回</button>`:''}${r.status==='approved'?`<button class="danger" data-action="cancel" data-id="${r.id}">取消假</button>`:''}<button class="danger" data-action="delete" data-id="${r.id}">刪除</button></div></div>`).join('');
  $('manage').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
   const r=records.find(x=>x.id===b.dataset.id);if(!r||!managerVerified||!managerClient)return;
   b.disabled=true;
   try{
    if(b.dataset.action==='delete'){if(!confirm('確定刪除此筆紀錄？'))return;const {error}=await managerClient.from('dg_preleave_requests').delete().eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
+   else if(b.dataset.action==='cancel'){if(!confirm(`確定取消 ${r.name} ${dateFmt(r.date)} 的假？取消後不會出現在月曆。`))return;const {error}=await managerClient.from('dg_preleave_requests').update({status:'rejected',reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
    else {if(b.dataset.action==='approved'){const err=conflicts(r.name,r.date,r.period,r.id);if(err){alert('目前名額規則不允許核准：'+err);return}}const {error}=await managerClient.from('dg_preleave_requests').update({status:b.dataset.action,reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
    await refreshRecords(managerClient);
   }catch(e){alert('雲端更新失敗：'+(e.message||'請稍後再試'))}finally{b.disabled=false}
@@ -285,6 +324,7 @@ async function managerLogin(){
 $('managerLoginBtn').addEventListener('click',managerLogin);
 $('managerPassword').addEventListener('keydown',e=>{if(e.key==='Enter')managerLogin()});
 $('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderManage()});
+$('mgrAdd').addEventListener('click',managerAddLeave);
 $('submit').addEventListener('click',submit);
 $('clear').addEventListener('click',()=>{$('employee').value='';$('date1').value='';$('date2').value='';$('reason').value='';msg('已清空欄位。')});
 $('overviewMonth').addEventListener('input',rerenderLeaveMonth);$('overviewMonth').addEventListener('change',rerenderLeaveMonth);$('filterShift').addEventListener('change',rerenderLeaveMonth);

@@ -24,6 +24,13 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
 .monthcal{margin-top:12px}.calday{border:1px solid #e2e7ea;border-radius:9px;min-height:72px;padding:4px 3px;background:#fff;text-align:left;overflow:hidden}.calday.blank{background:transparent;border-color:transparent}.calday.today{border:2px solid #183b32}.calnum{font-size:11px;font-weight:800;color:#39434b;margin-bottom:3px}.calnames{display:flex;flex-direction:column;gap:2px}.calname{font-size:13px;font-weight:800;line-height:1.2;border-radius:4px;padding:3px 2px;text-align:center;letter-spacing:.04em}.calname .per{font-size:10px;font-weight:700;margin-left:1px}.calname.approved{background:#e4f6e9;color:#17653a}.calname.pending{background:#fff1d1;color:#79521b}.legend{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.legend span{font-size:12px;padding:5px 8px;border-radius:7px}.legend .lapproved{background:#e4f6e9;color:#17653a}.legend .lpending{background:#fff1d1;color:#79521b}
 @media(max-width:600px){.calday{min-height:64px;padding:3px 2px}.calname{font-size:12px;padding:2px 1px}.calnum{font-size:10px}.grid{gap:3px}}
 @media(max-width:480px){body{padding:10px 8px 28px}.card{padding:12px}.day{min-height:53px}.day small{font-size:9px}.grid{gap:3px}header{padding:17px}}
+.calname{cursor:pointer}
+.calpop{position:fixed;z-index:50;width:max-content;max-width:min(260px,calc(100vw - 16px));background:#fff;border:1px solid #d5e0e4;border-radius:12px;box-shadow:0 12px 28px #182a3530;padding:10px 12px;line-height:1.45;color:#20252b}
+.calpop[hidden]{display:none}
+.calpop-date{font-size:12px;font-weight:700;color:#52606b}
+.calpop strong{display:block;margin-top:2px;font-size:16px}
+.calpop-meta{margin-top:4px;font-size:13px}
+.calpop-note{margin-top:6px;font-size:12px;color:#52606b}
 </style>
 <meta name="zdos-supabase-url" content="https://ulbaleegutbiyxctqrth.supabase.co">
 <meta name="zdos-supabase-anon-key" content="sb_publishable_S4mqjBsV_5NILsEVB8g1lg_OQAciXcO">
@@ -51,6 +58,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;p
 <div class="row"><div class="field"><label for="overviewMonth">查看月份</label><input id="overviewMonth" type="month"></div><div class="field"><label for="filterShift">班別篩選</label><select id="filterShift"><option value="全部">全部班別</option><option value="早班">早班</option><option value="中班">中班</option><option value="晚班">晚班</option><option value="待確認">待確認</option></select></div></div>
 <div class="legend"><span class="lapproved">綠色：已核准</span><span class="lpending">黃色：未核准／待審核</span></div>
 <div id="calendar" class="monthcal" aria-live="polite"></div>
+<div id="calpop" class="calpop" hidden role="dialog" aria-label="預排假明細"></div>
 <h3 style="font-size:15px;margin:18px 0 8px">本月預排假明細</h3><div id="overview"></div>
 </div>
 <div class="card">
@@ -122,7 +130,29 @@ function populate(){
  $('roster').innerHTML=people.map((s,i)=>`<div class="entry"><div><strong>${esc(s.name)}</strong><small>${esc(s.time)}</small></div><div style="min-width:130px"><select data-shift="${i}" aria-label="${esc(s.name)}班別"><option ${s.shift==='早班'?'selected':''}>早班</option><option ${s.shift==='中班'?'selected':''}>中班</option><option ${s.shift==='晚班'?'selected':''}>晚班</option><option ${s.shift==='待確認'?'selected':''}>待確認</option></select></div></div>`).join('');
  $('roster').querySelectorAll('select').forEach(sel=>sel.addEventListener('change',()=>{people[Number(sel.dataset.shift)].shift=sel.value;renderAll()}));
 }
+let popAnchor=null, popPinned=false;
+function hidePop(){const p=$('calpop');if(p)p.hidden=true;popAnchor=null;popPinned=false}
+function placePop(chip){
+ const p=$('calpop'); if(!p||p.hidden)return;
+ const r=chip.getBoundingClientRect(), w=p.offsetWidth, h=p.offsetHeight;
+ let left=r.left+r.width/2-w/2, top=r.bottom+8;
+ if(left<8)left=8;
+ if(left+w>innerWidth-8)left=Math.max(8,innerWidth-8-w);
+ if(top+h>innerHeight-8)top=Math.max(8,r.top-h-8);
+ p.style.left=left+'px'; p.style.top=top+'px';
+}
+function showPop(chip,mode){
+ if(mode==='hover'&&popPinned)return;
+ if(mode==='toggle'&&popPinned&&popAnchor===chip&&!$('calpop').hidden){hidePop();return}
+ popPinned=mode!=='hover';
+ popAnchor=chip;
+ const reason=chip.dataset.reason||'';
+ $('calpop').innerHTML=`<div class="calpop-date">${esc(dateFmt(chip.dataset.date))}</div><strong>${esc(chip.dataset.name||'')}</strong><div class="calpop-meta">${esc(chip.dataset.shift||'')} · ${esc(chip.dataset.period||'')} · ${esc(statusName(chip.dataset.status))}</div>${reason?`<div class="calpop-note">備註：${esc(reason)}</div>`:''}`;
+ $('calpop').hidden=false;
+ placePop(chip);
+}
 function renderCalendar(){
+ hidePop();
  const mon=$('overviewMonth').value||monthNow; const [yy,mm]=mon.split('-').map(Number);
  const first=new Date(yy,mm-1,1), days=new Date(yy,mm,0).getDate(), offset=first.getDay();
  const filter=$('filterShift').value;
@@ -132,11 +162,11 @@ function renderCalendar(){
  const today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
  for(let d=1;d<=days;d++){
   const date=`${yy}-${pad(mm)}-${pad(d)}`, list=(byDate[date]||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
-  const names=list.map(r=>{const mark=periodMark(r.period);const title=`${r.name}｜${shiftOf(r.name)}｜${r.period}｜${statusName(r.status)}`;return `<div class="calname ${r.status==='approved'?'approved':'pending'}" title="${esc(title)}">${esc(shortName(r.name))}${mark?`<span class="per">${mark}</span>`:''}</div>`}).join('');
+  const names=list.map(r=>{const mark=periodMark(r.period);return `<div class="calname ${r.status==='approved'?'approved':'pending'}" role="button" tabindex="0" data-name="${esc(r.name)}" data-date="${esc(r.date)}" data-period="${esc(r.period)}" data-shift="${esc(shiftOf(r.name))}" data-status="${esc(r.status)}" data-reason="${esc(r.reason||'')}">${esc(shortName(r.name))}${mark?`<span class="per">${mark}</span>`:''}</div>`}).join('');
   html+=`<div class="calday ${date===today?'today':''}"><div class="calnum">${d}</div>${names?`<div class="calnames">${names}</div>`:''}</div>`;
  }
  let blank=0; while((offset+days+blank)%7!==0){html+='<div class="calday blank" aria-hidden="true"></div>';blank++}
- $('calendar').innerHTML=`<div class="grid">${html}</div><p class="hint">整月班表直接寫在日期格子裡。例如 11/1 顏志添休，該格顯示「志添」。全天只寫名字；上午、下午會加「上」「下」。綠色已核准、黃色待審核。退回不列入。完整姓名仍在下方明細。</p>`;
+ $('calendar').innerHTML=`<div class="grid">${html}</div><p class="hint">整月班表直接寫在日期格子裡。例如 11/1 顏志添休，該格顯示「志添」。點名字會浮出完整姓名、班別、時段與備註。全天只寫名字；上午、下午會加「上」「下」。綠色已核准、黃色待審核。</p>`;
 }
 function renderSelection(){$('selection').textContent=selected.length?`已選日期：${selected.map(dateFmt).join('、')}（${selected.length}/2 天）`:'尚未選擇日期。'}
 function msg(t,bad){$('message').textContent=t||'請選擇員工與日期。';$('message').className='status'+(bad?' bad':t?' ok':'')}
@@ -258,6 +288,17 @@ $('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await
 $('submit').addEventListener('click',submit);
 $('clear').addEventListener('click',()=>{$('employee').value='';$('date1').value='';$('date2').value='';$('reason').value='';msg('已清空欄位。')});
 $('overviewMonth').addEventListener('input',rerenderLeaveMonth);$('overviewMonth').addEventListener('change',rerenderLeaveMonth);$('filterShift').addEventListener('change',rerenderLeaveMonth);
+const fineHover=window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+$('calendar').addEventListener('click',e=>{const chip=e.target.closest('.calname');if(!chip)return;e.stopPropagation();showPop(chip,fineHover?'pin':'toggle')});
+$('calendar').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const chip=e.target.closest('.calname');if(!chip)return;e.preventDefault();showPop(chip,'toggle')});
+if(fineHover){
+ $('calendar').addEventListener('pointerover',e=>{const chip=e.target.closest('.calname');if(chip)showPop(chip,'hover')});
+ $('calendar').addEventListener('pointerout',e=>{if(popPinned)return;const chip=e.target.closest('.calname');if(!chip)return;const to=e.relatedTarget;if(to&&(chip.contains(to)||(to.closest&&to.closest('#calpop'))))return;hidePop()});
+}
+document.addEventListener('click',e=>{if(e.target.closest('#calpop')||e.target.closest('.calname'))return;hidePop()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')hidePop()});
+window.addEventListener('scroll',()=>{if(!popAnchor||$('calpop').hidden)return;const r=popAnchor.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)hidePop();else placePop(popAnchor)},true);
+window.addEventListener('resize',()=>{if(popAnchor&&!$('calpop').hidden)placePop(popAnchor)});
 function rerenderLeaveMonth(){renderCalendar();renderOverview()}
 $('export').addEventListener('click',()=>{if(!managerVerified)return;download('zdos-dg-preleave-backup.json',JSON.stringify({version:1,staff:people,records},null,2),'application/json')});
 $('csv').addEventListener('click',()=>{if(!managerVerified)return;const rows=[['日期','員工','班別','時段','狀態','備註'],...records.map(r=>[r.date,r.name,shiftOf(r.name),r.period,statusName(r.status),r.reason||''])];download('zdos-dg-preleave.csv','\ufeff'+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n'),'text/csv;charset=utf-8')});

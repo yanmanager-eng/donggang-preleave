@@ -90,12 +90,93 @@ table.sheet-table{border-collapse:collapse;width:100%;table-layout:fixed;font-si
  .sheet-head{padding:16px 12px 12px}
  .sheet-head h2{font-size:18px;letter-spacing:.02em}
 }
+
+/* 2026 mobile-first visual refresh */
+:root{
+ --ink:#1d2c3a;--muted:#718092;--navy:#152c43;--teal:#1f665d;
+ --teal-dark:#174d48;--gold:#c59a55;--paper:#f5f3ee;--line:#e5e8e5;
+ --shadow:0 10px 28px rgba(24,43,58,.07);
+}
+html{scroll-behavior:smooth}
+body{max-width:980px;background:var(--paper);color:var(--ink);padding:18px 14px 104px}
+header{
+ position:relative;overflow:hidden;background:linear-gradient(125deg,#142b42 0%,#1c4d50 100%);
+ color:#fff;border-radius:24px;padding:22px 22px 20px;margin:0 0 16px;
+ box-shadow:0 14px 34px rgba(19,47,61,.18);min-height:168px
+}
+header:before{content:"";position:absolute;width:220px;height:220px;border:1px solid #ffffff18;border-radius:50%;right:-62px;top:-100px}
+header:after{content:"";position:absolute;width:150px;height:150px;border:1px solid #ffffff12;border-radius:50%;right:28px;bottom:-108px}
+.hero-top,.hero-foot{display:flex;align-items:center;gap:9px;position:relative;z-index:1}
+.hero-mark{width:29px;height:29px;display:grid;place-items:center;border-radius:9px;background:linear-gradient(135deg,#d9b779,#a77c3e);color:#183247;font-weight:900;font-family:Georgia,serif}
+.hero-kicker{font-size:10px;letter-spacing:.18em;color:#d6e4df;font-weight:800}
+.hero-chip{margin-left:auto;border:1px solid #ffffff35;border-radius:99px;padding:5px 9px;font-size:10px;color:#e7eee9}
+header h1{font-size:29px;letter-spacing:.04em;margin:17px 0 6px;font-weight:850;position:relative;z-index:1}
+header h1 em{font-style:normal;color:#e4c58e}
+header p{font-size:13px;color:#d7e5e0;position:relative;z-index:1;line-height:1.6}
+.hero-foot{margin-top:17px;font-size:10px;color:#b8cec8;letter-spacing:.04em}
+.hero-dot{width:4px;height:4px;border-radius:50%;background:var(--gold)}
+.card,.sheet{background:#fff;border:1px solid #e7e9e5;border-radius:19px;box-shadow:var(--shadow);padding:18px;margin:14px 0}
+.sheet{padding:0;overflow:hidden}
+.sheet-head{background:linear-gradient(120deg,#1a3a52,#285b5a);padding:20px 16px 16px}
+.sheet-head h2{font-size:20px;letter-spacing:.04em}
+.sheet-head p{color:#dce8e4;font-size:12px}
+.sheet-nav{display:flex;gap:7px;margin-top:13px}
+.sheet-nav button{background:#ffffff18;color:#fff;border:1px solid #ffffff35;border-radius:10px;padding:9px 12px;font-size:12px}
+h2{font-size:18px;color:#20384b;letter-spacing:.02em;margin:0 0 14px}
+h3{color:#29475a}
+label{font-weight:650;color:#586a78}
+input,select,button{border-radius:12px}
+input,select{background:#fbfcfa;border-color:#dce3df;padding:12px}
+button{transition:transform .16s ease,box-shadow .16s ease}
+button:active{transform:scale(.98)}
+.primary{background:linear-gradient(135deg,#1f665d,#174d48);border-color:#1f665d;box-shadow:0 5px 12px #1f665d22}
+.secondary{background:#f1f5f2;border-color:#dfe8e2;color:#31594f}
+.status{border:1px solid #e8ece8;background:#f7f9f7;border-radius:12px}
+.status.ok{border-color:#d8ebdf}
+.monthcal{gap:5px}
+.calday{border-radius:11px;min-height:78px;border-color:#e6ebe7;padding:6px 4px;background:#fff}
+.calday.today{border:2px solid var(--teal);background:#f4faf7}
+.calnum{color:#526575}
+.calname{border-radius:6px}
+.legend{gap:6px}
+.legend span{border-radius:99px;padding:6px 9px;font-weight:650}
+.entry{padding:13px 2px}
+.dock{
+ position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));
+ width:min(620px,calc(100% - 22px));z-index:60;
+ background:rgba(20,43,63,.96);backdrop-filter:blur(16px);
+ border:1px solid #ffffff1a;border-radius:19px;padding:7px;
+ box-shadow:0 12px 34px rgba(14,32,47,.25);display:flex;gap:5px
+}
+.dock button{flex:1;min-width:0;width:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+ background:transparent;color:#c8d6d8;border:0;border-radius:13px;padding:9px 4px;font-size:10px;font-weight:700;white-space:nowrap}
+.dock button .nav-icon{font-size:17px;line-height:1.1;font-weight:500}
+.dock button.on{background:linear-gradient(145deg,#2a756a,#1e5c56);color:#fff;box-shadow:inset 0 0 0 1px #ffffff18}
+.view-hidden{display:none!important}
+#monthCard,#leaveCard,#managerCard,#weekSheet{scroll-margin-top:12px;scroll-margin-bottom:110px}
+@media(min-width:761px){
+ body{padding:24px 24px 40px}
+ .dock{position:sticky;left:auto;transform:none;bottom:auto;width:100%;max-width:620px;margin:18px auto 20px;border-radius:15px}
+ .dock button{flex-direction:row;font-size:12px;padding:11px}
+ .dock button .nav-icon{font-size:15px}
+}
+@media(max-width:600px){
+ body{padding:10px 9px 100px}
+ header{padding:19px 18px 17px;border-radius:20px;min-height:155px}
+ header h1{font-size:26px;margin-top:15px}
+ .card{padding:15px;margin:11px 0}
+ .sheet-head{padding:17px 13px 14px}
+ .calday{min-height:67px;padding:4px 2px}
+ .calname{font-size:11px;letter-spacing:0}
+ .legend span{font-size:10px}
+}
 </style>
 <meta name="zdos-supabase-url" content="https://ulbaleegutbiyxctqrth.supabase.co">
 <meta name="zdos-supabase-anon-key" content="sb_publishable_S4mqjBsV_5NILsEVB8g1lg_OQAciXcO">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+<header><div class="hero-top"><span class="hero-mark">D</span><span class="hero-kicker">DAPU · DONGGANG</span><span class="hero-chip">員工排假系統</span></div><h1>東港店 <em>預排假</em></h1><p>休假安排，一目了然。選擇下方功能開始使用。</p><div class="hero-foot"><span>大埔鐵板燒・東港店</span><span class="hero-dot"></span><span>員工服務平台</span></div></header>
 <section class="sheet" id="weekSheet">
 <div class="sheet-head">
 <h2>大埔鐵板燒｜東港店 週假表</h2>
@@ -110,7 +191,6 @@ table.sheet-table{border-collapse:collapse;width:100%;table-layout:fixed;font-si
 <div class="sheet-scroll"><table class="sheet-table"><colgroup id="weekCols"></colgroup><thead id="weekHead"></thead><tbody id="weekBody"></tbody></table></div>
 <p class="sheet-note">粉色是已核准的休，黃色是還沒核准。空白代表該班出勤。兼職上班時間由幹部登入後填：手機點當天卡片，電腦填在藍底格子。有休假的日子不能改成上班。</p>
 </section>
-<header><h1>東港店｜員工預排假</h1><p>送出休假、幹部審核。上方週假表會跟著更新。</p></header>
 <div class="card" id="monthCard">
 <h2>全體員工預排假總覽</h2>
 <div class="row"><div class="field"><label for="overviewMonth">查看月份</label><input id="overviewMonth" type="month"></div><div class="field"><label for="filterShift">班別篩選</label><select id="filterShift"><option value="全部">全部班別</option><option value="早班">早班</option><option value="中班">中班</option><option value="晚班">晚班</option><option value="待確認">待確認</option></select></div></div>
@@ -163,10 +243,10 @@ table.sheet-table{border-collapse:collapse;width:100%;table-layout:fixed;font-si
 </div>
 </div>
 <nav class="dock" aria-label="主要導覽">
-<button type="button" data-go="weekSheet" class="on">班表</button>
-<button type="button" data-go="monthCard">月曆</button>
-<button type="button" data-go="leaveCard">請假</button>
-<button type="button" data-go="managerCard">幹部</button>
+<button type="button" data-go="monthCard" class="on"><span class="nav-icon">▦</span><span>月曆總覽</span></button>
+<button type="button" data-go="weekSheet"><span class="nav-icon">▤</span><span>週假表</span></button>
+<button type="button" data-go="leaveCard"><span class="nav-icon">＋</span><span>我要排假</span></button>
+<button type="button" data-go="managerCard"><span class="nav-icon">⌘</span><span>幹部管理</span></button>
 </nav>
 <script>
 (function(){
@@ -538,7 +618,17 @@ $('weekThis').addEventListener('click',()=>{weekAnchor=mondayOf(new Date());sele
 $('weekSheet').addEventListener('change',e=>{const input=e.target.closest('input.pt-time');if(!input)return;savePtHour(input.dataset.pt,input.dataset.date,input.value)});
 $('dayStrip').addEventListener('click',e=>{const btn=e.target.closest('[data-offset]');if(!btn)return;selectedOffset=Number(btn.dataset.offset);renderDayBoard()});
 $('dayCards').addEventListener('click',e=>{const card=e.target.closest('.staffcard');if(!card||e.target.closest('input'))return;const input=card.querySelector('input.pt-time');if(input)input.focus()});
-document.querySelector('.dock').addEventListener('click',e=>{const btn=e.target.closest('[data-go]');if(!btn)return;document.querySelectorAll('.dock button').forEach(b=>b.classList.toggle('on',b===btn));const target=$(btn.dataset.go);if(target)target.scrollIntoView({behavior:'smooth',block:'start'})});
+function activateView(id){
+ const ids=['monthCard','weekSheet','leaveCard','managerCard'];
+ ids.forEach(viewId=>{const node=$(viewId);if(node)node.classList.toggle('view-hidden',viewId!==id)});
+ document.querySelectorAll('.dock button').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelector('.dock').addEventListener('click',e=>{
+ const btn=e.target.closest('[data-go]');if(!btn)return;
+ activateView(btn.dataset.go);
+});
+activateView('monthCard');
 $('mgrAdd').addEventListener('click',managerAddLeave);
 $('submit').addEventListener('click',submit);
 $('clear').addEventListener('click',()=>{$('employee').value='';$('date1').value='';$('date2').value='';$('reason').value='';msg('已清空欄位。')});

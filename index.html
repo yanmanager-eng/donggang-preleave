@@ -130,7 +130,7 @@ table.sheet-table{border-collapse:collapse;width:100%;table-layout:fixed;font-si
 <div class="field"><label for="date2">預排日期 2（選填）</label><input id="date2" type="date"></div>
 </div>
 <div class="field" style="margin-top:10px"><label for="reason">備註（選填）</label><input id="reason" maxlength="80" placeholder="例如：家庭安排"></div>
-<p class="hint">填姓名、選日期即可送出；每次最多 2 天。同日全店最多 2 人，同班別不得同休。申請送出後由幹部審核。</p>
+<p class="hint">填姓名、選日期即可送出；每次最多 2 天。一般預排假同日最多 2 人、同班別不得同休；如遇撞假，可由集團首腦或店長登入後確認核准。集團首腦與店長可自行直接排假，無須他人同意。</p>
 <div class="row" style="margin-top:12px"><button id="submit" class="primary">送出預排假</button><button id="clear" class="secondary">清空欄位</button></div>
 <div id="message" class="status" style="margin-top:10px" role="status">請填寫姓名及至少一個日期。</div>
 </div>
@@ -144,7 +144,7 @@ table.sheet-table{border-collapse:collapse;width:100%;table-layout:fixed;font-si
  <div class="status ok" id="managerIdentity" style="margin-bottom:10px"></div>
  <div class="row"><button id="managerLogout" class="secondary">登出管理</button><button id="export" class="secondary">匯出 JSON 備份</button><button id="csv" class="secondary">匯出 CSV</button><label class="secondary" style="display:block;text-align:center;cursor:pointer;border:1px solid #d7e2dc;border-radius:10px;padding:11px;flex:1">匯入 JSON 備份<input id="import" type="file" accept=".json,application/json" style="display:none"></label></div>
  <h3 style="font-size:15px;margin:16px 0 8px">新增假</h3>
- <p class="hint">幹部直接排入的假會立即核准，並以藍色出現在月曆。沒有每人每月天數上限。仍受同日最多 2 人、同班別不得同休限制。</p>
+ <p class="hint">幹部直接排入的假會立即核准，並以藍色出現在月曆。集團首腦、店長可自行排假，無須他人同意；遇到同日名額或同班別撞假時，可再次確認後以權限核准。其他幹部仍依原規則。</p>
  <div class="row">
   <div class="field"><label for="mgrEmployee">員工</label><select id="mgrEmployee"></select></div>
   <div class="field"><label for="mgrPeriod">時段</label><select id="mgrPeriod"><option value="全天">全天</option><option value="上午">上午</option><option value="下午">下午</option></select></div>
@@ -224,9 +224,10 @@ function effective(r){return r.status!=='rejected'}
 function conflicts(name,date,period,ignoreId=null,opt){
  const sameDate=records.filter(r=>r.date===date&&effective(r)&&r.id!==ignoreId);
  if(sameDate.some(r=>samePerson(r.name,name)))return '你已在此日期提出預排假。';
- if(sameDate.length>=2)return '此日期全店已有 2 人預排假，名額已滿，申請遭拒絕，請洽幹部。';
+ const allowCollision=!!(opt&&opt.allowCollision);
+ if(!allowCollision&&sameDate.length>=2)return '此日期全店已有 2 人預排假，名額已滿，申請遭拒絕，請洽幹部。';
  const sh=shiftOf(name);
- if(sh!=='待確認'&&sh!=='PT'&&sameDate.some(r=>shiftOf(r.name)===sh))return `${sh}已有員工預排假，同班別不能同休，申請遭拒絕，請洽幹部。`;
+ if(!allowCollision&&sh!=='待確認'&&sh!=='PT'&&sameDate.some(r=>shiftOf(r.name)===sh))return `${sh}已有員工預排假，同班別不能同休，申請遭拒絕，請洽幹部。`;
  if(opt&&opt.skipDayLimit)return '';
  const month=date.slice(0,7);
  const days=new Set(records.filter(r=>samePerson(r.name,name)&&r.date.slice(0,7)===month&&effective(r)&&r.id!==ignoreId).map(r=>r.date));
@@ -307,13 +308,25 @@ function renderOverview(){
  $('overview').innerHTML=dates.map(date=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(date)} · ${byDate[date].length}/2 人</strong><div class="pills" style="margin-top:7px">${byDate[date].map(r=>`<span class="pill ${leaveClass(r)}">${esc(r.name)}｜${esc(r.period)}｜${leaveLabel(r)}（${esc(shiftOf(r.name))}）</span>`).join('')}</div></div></div>`).join('');
 }
 function mgrMsg(t,bad){const el=$('mgrAddMessage');if(!el)return;el.textContent=t;el.className='status'+(bad?' bad':t?' ok':'')}
+function isOwnerOrStoreManager(){return !!managerUser&&['owner','manager'].includes(String(managerUser.role||''))}
+function managerSelfName(){const raw=String(managerUser?.display_name||'').trim();return raw?canonicalName(raw):''}
+function addManagerSelfOption(){
+ if(!isOwnerOrStoreManager())return;
+ const name=managerSelfName();if(!name)return;
+ const exists=[...$('mgrEmployee').options].some(o=>o.value===name);
+ if(!exists){const option=document.createElement('option');option.value=name;option.textContent=`${name}（${managerUser.role==='owner'?'集團首腦':'店長'}本人）`;$('mgrEmployee').appendChild(option)}
+}
 async function managerAddLeave(){
  if(!managerVerified||!managerClient){mgrMsg('請先登入幹部管理。',true);return}
  const name=$('mgrEmployee').value.trim(), date=$('mgrDate').value, period=$('mgrPeriod').value, reason=$('mgrReason').value.trim();
  if(!name){mgrMsg('請選擇員工。',true);return}
  if(!date){mgrMsg('請選擇日期。',true);return}
- const blocked=conflicts(name,date,period,null,{skipDayLimit:true});
+ const privileged=isOwnerOrStoreManager();
+ const blocked=conflicts(name,date,period,null,{skipDayLimit:true,allowCollision:privileged});
  if(blocked){mgrMsg(blocked,true);return}
+ const collision=records.filter(r=>r.date===date&&effective(r));
+ const hasCollision=collision.length>0&&(collision.length>=2|| (shiftOf(name)!=='待確認'&&shiftOf(name)!=='PT'&&collision.some(r=>shiftOf(r.name)===shiftOf(name))));
+ if(hasCollision&&privileged&&!confirm(`這天已有同日／同班別預排假。以${managerUser.role==='owner'?'集團首腦':'店長'}權限確認後，將直接核准 ${name} ${dateFmt(date)} ${period}。確定同休？`))return;
  const btn=$('mgrAdd');
  btn.disabled=true;
  try{
@@ -342,7 +355,7 @@ function renderManage(){
   try{
    if(b.dataset.action==='delete'){if(!confirm('確定刪除此筆紀錄？'))return;const {error}=await managerClient.from('dg_preleave_requests').delete().eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
    else if(b.dataset.action==='cancel'){if(!confirm(`確定取消 ${r.name} ${dateFmt(r.date)} 的假？取消後不會出現在月曆。`))return;const {error}=await managerClient.from('dg_preleave_requests').update({status:'rejected',reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
-   else {if(b.dataset.action==='approved'){const err=conflicts(r.name,r.date,r.period,r.id);if(err){alert('目前名額規則不允許核准：'+err);return}}const {error}=await managerClient.from('dg_preleave_requests').update({status:b.dataset.action,reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
+   else {if(b.dataset.action==='approved'){const privileged=isOwnerOrStoreManager();const err=conflicts(r.name,r.date,r.period,r.id,{allowCollision:privileged});if(err){alert('目前規則不允許核准：'+err);return}const others=records.filter(x=>x.date===r.date&&effective(x)&&x.id!==r.id);const collision=others.length>0&&(others.length>=2||(shiftOf(r.name)!=='待確認'&&shiftOf(r.name)!=='PT'&&others.some(x=>shiftOf(x.name)===shiftOf(r.name))));if(collision&&privileged&&!confirm(`此申請與其他員工撞假。由${managerUser.role==='owner'?'集團首腦':'店長'}確認後仍核准同休，確定嗎？`))return}const {error}=await managerClient.from('dg_preleave_requests').update({status:b.dataset.action,reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
    await refreshRecords(managerClient);
   }catch(e){alert('雲端更新失敗：'+(e.message||'請稍後再試'))}finally{b.disabled=false}
  }));
@@ -507,6 +520,7 @@ async function managerLogin(){
   const canDG=(members||[]).some(m=>String(m.stores?.code||'').toUpperCase()==='DG'&&m.stores?.is_active!==false);
   if(!canDG&&profile.role!=='owner')throw new Error('此帳號沒有東港店管理權限。');
   managerVerified=true; managerUser=profile;
+  addManagerSelfOption();
   $('managerLogin').hidden=true; $('managerPanel').hidden=false;
   $('managerIdentity').textContent=`已驗證：${profile.display_name||profile.employee_no}｜${({owner:'集團首腦',manager:'店長',supervisor:'領班',trainee_manager:'實習幹部'})[profile.role]||profile.role}`;
   await refreshRecords(managerClient);msg.textContent='驗證成功，雲端資料已載入。';msg.className='status ok';renderManage();

@@ -170,6 +170,24 @@ button:active{transform:scale(.98)}
  .calname{font-size:11px;letter-spacing:0}
  .legend span{font-size:10px}
 }
+@media(max-width:600px){
+ #monthCard > .row:first-of-type{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:10px;
+ }
+ #monthCard > .row:first-of-type > .field{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+ }
+ #monthCard #overviewMonth,
+ #monthCard #filterShift{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+ }
+}
 </style>
 <meta name="zdos-supabase-url" content="https://ulbaleegutbiyxctqrth.supabase.co">
 <meta name="zdos-supabase-anon-key" content="sb_publishable_S4mqjBsV_5NILsEVB8g1lg_OQAciXcO">

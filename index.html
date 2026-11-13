@@ -163,6 +163,16 @@ button:active{transform:scale(.98)}
 .dock button .nav-icon{font-size:17px;line-height:1.1;font-weight:500}
 .dock button.on{background:linear-gradient(145deg,#2a756a,#1e5c56);color:#fff;box-shadow:inset 0 0 0 1px #ffffff18}
 .view-hidden{display:none!important}
+.dock button[hidden]{display:none!important}
+#exportCard .export-table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}
+#exportCard .export-table th{background:#152c43;color:#fff;padding:8px 4px;font-weight:750}
+#exportCard .export-table td{border:1px solid #d7e0e8;padding:7px 4px;text-align:center}
+#exportCard .export-table td.who,#exportCard .export-table th.who{text-align:left;padding-left:8px}
+#exportCard .export-table tr.full td{background:#fbf6e8}
+#exportCard .export-table tr.pt td{background:#e7f2fb}
+#exportCard .export-table td.off{background:#fdecee;color:#d64545;font-weight:800}
+#exportCard .export-table td.pend{background:#fff4d8;color:#9a6416;font-weight:800}
+#exportCard .export-note{width:100%;min-height:72px;margin-top:8px}
 #monthCard,#leaveCard,#managerCard,#weekSheet{scroll-margin-top:12px;scroll-margin-bottom:110px}
 @media(min-width:761px){
  body{padding:24px 24px 40px}
@@ -274,11 +284,33 @@ button:active{transform:scale(.98)}
  <div id="roster"></div>
 </div>
 </div>
+<section class="card view-hidden" id="exportCard">
+<h2>週班表圖片輸出中心</h2>
+<p class="hint">沿用上方週假表的名單、排序、休假與兼職時間。正職顯示目前頁面的固定時段，兼職顯示已儲存的上班時間。這張表只供輸出，不會改寫週假表。</p>
+<div class="sheet-nav">
+<button type="button" id="exportPrev">上一週</button>
+<button type="button" id="exportThis">本週</button>
+<button type="button" id="exportNext">下一週</button>
+<button type="button" id="exportReload" class="primary">載入資料</button>
+</div>
+<p id="exportRange" style="margin:12px 0 8px;font-weight:750;color:#152c43"></p>
+<div style="overflow-x:auto"><table class="export-table"><thead id="exportHead"></thead><tbody id="exportBody"></tbody></table></div>
+<label for="exportNotice">公告文字</label>
+<textarea id="exportNotice" class="export-note" maxlength="180" placeholder="可輸入本週公告，會印在圖片上方。"></textarea>
+<div class="row" style="margin-top:10px">
+<button type="button" id="exportHd" class="primary">高清 PNG</button>
+<button type="button" id="exportA4" class="secondary">A4 橫式</button>
+<button type="button" id="exportLine" class="secondary">LINE 手機版</button>
+<button type="button" id="exportShare" class="secondary">分享圖片</button>
+</div>
+<div id="exportStatus" class="status" style="margin-top:10px" role="status"></div>
+</section>
 <nav class="dock" aria-label="主要導覽">
 <button type="button" data-go="monthCard" class="on"><span class="nav-icon">▦</span><span>月曆總覽</span></button>
 <button type="button" data-go="weekSheet"><span class="nav-icon">▤</span><span>週假表</span></button>
 <button type="button" data-go="leaveCard"><span class="nav-icon">＋</span><span>我要排假</span></button>
 <button type="button" data-go="managerCard"><span class="nav-icon">⌘</span><span>幹部管理</span></button>
+<button type="button" data-go="exportCard" hidden><span class="nav-icon">▣</span><span>輸出</span></button>
 </nav>
 <script>
 (function(){
@@ -333,6 +365,7 @@ function refreshPtEditRight(){
  const active=!!(managerVerified&&managerClient&&user&&user.is_active===true);
  const designatedPtEditor=!!(active&&managerDgMember&&role==='supervisor'&&String(user.id||'').toLowerCase()==='72afca49-99c4-4225-8ca6-5c1d815ef267'&&String(user.employee_no||'').trim().toUpperCase()==='DG012602');
  canEditPtHours=!!(active&&(role==='owner'||(role==='manager'&&managerDgMember)||designatedPtEditor));
+ syncExportEntry();
 }
 async function refreshRecords(client=cloudClient){
  const {data,error}=await client.from('dg_preleave_requests').select('id,employee_name,leave_date,leave_period,reason,status,submitted_at,reviewed_by,reviewed_at').eq('store_id',STORE_ID).order('leave_date').order('submitted_at');
@@ -524,6 +557,133 @@ function leaveMark(person,date){
  return {text,pending:list.every(r=>r.status==='pending'),title:list.map(r=>`${leaveLabel(r)} · ${r.period}`).join('、')};
 }
 function ptHour(person,date){const row=ptRows.find(r=>r.date===date&&personByName(r.name)?.name===person.name);return row?String(row.reason||'').trim():''}
+let exportWeekAnchor=null;
+function exportDates(){if(!exportWeekAnchor)exportWeekAnchor=mondayOf(now);return Array.from({length:7},(_,i)=>addDays(exportWeekAnchor,i))}
+function posterCell(person,date){
+ const mark=leaveMark(person,date);
+ if(mark) return {text:mark.text,kind:mark.pending?'pend':'off'};
+ if(person.pt) return {text:ptHour(person,date)||'',kind:'pt'};
+ return {text:person.hours||'',kind:'work'};
+}
+function syncExportEntry(){
+ const btn=document.querySelector('.dock [data-go="exportCard"]');
+ if(btn) btn.hidden=!canEditPtHours;
+ if(!canEditPtHours&&$('exportCard')&&!$('exportCard').classList.contains('view-hidden')) activateView('monthCard');
+}
+function renderExport(){
+ if(!$('exportBody')) return;
+ if(!canEditPtHours){$('exportBody').innerHTML='';$('exportHead').innerHTML='';$('exportRange').textContent='';return}
+ const days=exportDates(), wd=['日','一','二','三','四','五','六'];
+ const end=days[6];
+ $('exportRange').textContent=`${days[0].getFullYear()}年${days[0].getMonth()+1}月${days[0].getDate()}日（週${wd[days[0].getDay()]}）－${end.getMonth()+1}月${end.getDate()}日（週${wd[end.getDay()]}）`;
+ $('exportHead').innerHTML=`<tr><th class="who">姓名</th><th>班別</th>${days.map(d=>`<th>${d.getMonth()+1}/${d.getDate()}<br>週${wd[d.getDay()]}</th>`).join('')}</tr>`;
+ $('exportBody').innerHTML=people.map(p=>`<tr class="${p.pt?'pt':'full'}"><td class="who">${esc(p.short)}</td><td>${esc(p.pt?'兼職':p.shift)}</td>${days.map(d=>{const cell=posterCell(p,ymd(d));return `<td class="${cell.kind==='off'||cell.kind==='pend'?cell.kind:''}">${esc(cell.text)}</td>`}).join('')}</tr>`).join('');
+}
+function posterLines(ctx,text,maxWidth,maxLines){
+ const lines=[]; let line='';
+ [...String(text||'')].forEach(ch=>{
+  if(ch==='\n'){lines.push(line);line='';return}
+  const next=line+ch;
+  if(line&&ctx.measureText(next).width>maxWidth){lines.push(line);line=ch}
+  else line=next;
+ });
+ if(line) lines.push(line);
+ return lines.slice(0,maxLines);
+}
+function fillFit(ctx,text,cx,cy,maxWidth,size,weight,color){
+ const family='"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+ let px=size;
+ const label=String(text||'');
+ ctx.fillStyle=color;
+ ctx.textAlign='center';
+ ctx.textBaseline='middle';
+ ctx.font=`${weight} ${px}px ${family}`;
+ while(px>12 && label && ctx.measureText(label).width>maxWidth-10){
+  px-=1;
+  ctx.font=`${weight} ${px}px ${family}`;
+ }
+ ctx.fillText(label,cx,cy);
+}
+function drawWeekPoster(kind){
+ const days=exportDates(), wd=['一','二','三','四','五','六','日'];
+ const family='"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+ const notice=String($('exportNotice')&&$('exportNotice').value||'').trim();
+ const rowCount=people.length;
+ let W,pad,titleH,headH,rowH,nameW,shiftW,bodyFont,titleFont,noticeFont;
+ if(kind==='a4'){W=3508;pad=72;titleH=150;headH=92;nameW=280;shiftW=180;bodyFont=34;titleFont=64;noticeFont=32}
+ else if(kind==='line'){W=1080;pad=28;titleH=118;headH=72;nameW=118;shiftW=86;bodyFont=22;titleFont=36;noticeFont=22}
+ else {W=2400;pad=40;titleH=132;headH=84;nameW=220;shiftW=140;bodyFont=30;titleFont=52;noticeFont=26}
+ const measure=document.createElement('canvas').getContext('2d');
+ measure.font=`500 ${noticeFont}px ${family}`;
+ const noticeLines=notice?posterLines(measure,notice,W-pad*2,4):[];
+ const noticeStep=Math.round(noticeFont*1.45);
+ const noticeH=noticeLines.length?noticeLines.length*noticeStep+Math.round(pad*0.45):0;
+ rowH=kind==='line'?72:kind==='hd'?84:90;
+ const H=kind==='a4'?2480:titleH+noticeH+Math.round(pad*0.7)+headH+rowH*rowCount+pad;
+ const canvas=document.createElement('canvas');
+ canvas.width=W; canvas.height=H;
+ const ctx=canvas.getContext('2d');
+ ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='#152c43'; ctx.fillRect(0,0,W,titleH);
+ ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle';
+ ctx.font=`700 ${titleFont}px ${family}`;
+ ctx.fillText('大埔鐵板燒｜東港店 週班表',pad,titleH*0.4);
+ ctx.font=`500 ${Math.round(titleFont*0.42)}px ${family}`;
+ ctx.fillText($('exportRange').textContent||'',pad,titleH*0.76);
+ let y=titleH+Math.round(pad*0.35);
+ if(noticeLines.length){
+  ctx.fillStyle='#1d2c3a'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.font=`500 ${noticeFont}px ${family}`;
+  noticeLines.forEach((line,i)=>ctx.fillText(line,pad,y+i*noticeStep));
+  y+=noticeH;
+ }
+ if(kind==='a4') rowH=Math.max(72,Math.floor((H-pad-y-headH)/rowCount));
+ const tableW=W-pad*2, dayW=(tableW-nameW-shiftW)/7;
+ const headers=['姓名','班別',...days.map((d,i)=>`${d.getMonth()+1}/${d.getDate()} 週${wd[i]}`)];
+ const widths=[nameW,shiftW,...Array(7).fill(dayW)];
+ let x=pad;
+ headers.forEach((label,i)=>{
+  ctx.fillStyle='#152c43'; ctx.fillRect(x,y,widths[i],headH);
+  ctx.strokeStyle='#d7e0e8'; ctx.strokeRect(x,y,widths[i],headH);
+  fillFit(ctx,label,x+widths[i]/2,y+headH/2,widths[i],Math.round(bodyFont*0.92),700,'#fff');
+  x+=widths[i];
+ });
+ people.forEach((p,ri)=>{
+  const top=y+headH+ri*rowH;
+  const bg=p.pt?'#e7f2fb':'#fbf6e8';
+  const cells=days.map(d=>posterCell(p,ymd(d)));
+  const values=[p.short,p.pt?'兼職':p.shift,...cells.map(c=>c.text)];
+  let col=pad;
+  values.forEach((label,i)=>{
+   const cell=i>=2?cells[i-2]:null;
+   let fill=bg, ink='#1d2c3a', weight=600;
+   if(cell&&cell.kind==='off'){fill='#fdecee';ink='#d64545';weight=800}
+   else if(cell&&cell.kind==='pend'){fill='#fff4d8';ink='#9a6416';weight=800}
+   ctx.fillStyle=fill; ctx.fillRect(col,top,widths[i],rowH);
+   ctx.strokeStyle='#d7e0e8'; ctx.strokeRect(col,top,widths[i],rowH);
+   fillFit(ctx,label,col+widths[i]/2,top+rowH/2,widths[i],bodyFont,weight,ink);
+   col+=widths[i];
+  });
+ });
+ return canvas;
+}
+async function outputPoster(kind,share){
+ if(!canEditPtHours) return;
+ const canvas=drawWeekPoster(kind);
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+ if(!blob){$('exportStatus').textContent='圖片沒有產生，請稍後再試。';$('exportStatus').className='status bad';return}
+ const filename=`donggang-week-${kind}.png`;
+ if(share&&navigator.share){
+  const file=new File([blob],filename,{type:'image/png'});
+  if(!navigator.canShare||navigator.canShare({files:[file]})){
+   try{await navigator.share({files:[file],title:'東港店週班表'});$('exportStatus').textContent='已開啟分享。';$('exportStatus').className='status ok';return}
+   catch(e){if(e&&e.name==='AbortError')return}
+  }
+ }
+ download(filename,blob,'image/png');
+ $('exportStatus').textContent=`已下載${kind==='a4'?' A4 橫式':kind==='line'?' LINE 手機版':'高清 PNG'}。`;
+ $('exportStatus').className='status ok';
+}
 function renderWeek(){
  const days=weekDates(), end=days[6], wd=['日','一','二','三','四','五','六'];
  const sameMonth=days.every(d=>d.getMonth()===days[0].getMonth()&&d.getFullYear()===days[0].getFullYear());
@@ -611,7 +771,7 @@ async function savePtHour(name,date,raw){
  }
  finally{ptSaving.delete(key)}
 }
-function renderAll(){renderWeek();renderCalendar();renderOverview();renderManage()}
+function renderAll(){renderWeek();renderCalendar();renderOverview();renderManage();renderExport()}
 /* 與 ZDOS 正式雲端登入（AUTH-004）同一套工號→Auth Email 規則；不可改用本機 store_accounts 明文密碼。 */
 const AUTH004_NEW_EMP_NO_RE=/^[A-Za-z]{2}\d{6}$/;
 const AUTH004_BETA_TEST_EMP_NO_RE=/^T\d{4}$/i;
@@ -687,17 +847,27 @@ async function managerLogin(){
 }
 $('managerLoginBtn').addEventListener('click',managerLogin);
 $('managerPassword').addEventListener('keydown',e=>{if(e.key==='Enter')managerLogin()});
-$('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;managerDgMember=false;canEditPtHours=false;$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderWeek();renderManage()});
+$('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;managerDgMember=false;canEditPtHours=false;syncExportEntry();$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderWeek();renderManage()});
 $('weekPrev').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,-7);renderWeek()});
 $('weekNext').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,7);renderWeek()});
 $('weekThis').addEventListener('click',()=>{weekAnchor=mondayOf(new Date());selectedOffset=null;renderWeek()});
+$('exportPrev').addEventListener('click',()=>{if(!canEditPtHours)return;exportWeekAnchor=addDays(exportDates()[0],-7);renderExport()});
+$('exportNext').addEventListener('click',()=>{if(!canEditPtHours)return;exportWeekAnchor=addDays(exportDates()[0],7);renderExport()});
+$('exportThis').addEventListener('click',()=>{if(!canEditPtHours)return;exportWeekAnchor=mondayOf(new Date());renderExport()});
+$('exportReload').addEventListener('click',async()=>{if(!canEditPtHours)return;try{await refreshRecords(managerClient||cloudClient);$('exportStatus').textContent='已載入這一週的休假與兼職時間。';$('exportStatus').className='status ok'}catch(e){$('exportStatus').textContent='載入失敗：'+(e.message||'請稍後再試');$('exportStatus').className='status bad'}});
+$('exportHd').addEventListener('click',()=>outputPoster('hd',false));
+$('exportA4').addEventListener('click',()=>outputPoster('a4',false));
+$('exportLine').addEventListener('click',()=>outputPoster('line',false));
+$('exportShare').addEventListener('click',()=>outputPoster('line',true));
 $('weekSheet').addEventListener('change',e=>{const input=e.target.closest('input.pt-time');if(!input)return;savePtHour(input.dataset.pt,input.dataset.date,input.value)});
 $('dayStrip').addEventListener('click',e=>{const btn=e.target.closest('[data-offset]');if(!btn)return;selectedOffset=Number(btn.dataset.offset);renderDayBoard()});
 $('dayCards').addEventListener('click',e=>{const card=e.target.closest('.staffcard');if(!card||e.target.closest('input'))return;const input=card.querySelector('input.pt-time');if(input)input.focus()});
 function activateView(id){
- const ids=['monthCard','weekSheet','leaveCard','managerCard'];
+ if(id==='exportCard'&&!canEditPtHours) id='monthCard';
+ const ids=['monthCard','weekSheet','leaveCard','managerCard','exportCard'];
  ids.forEach(viewId=>{const node=$(viewId);if(node)node.classList.toggle('view-hidden',viewId!==id)});
  document.querySelectorAll('.dock button').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+ if(id==='exportCard') renderExport();
  window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelector('.dock').addEventListener('click',e=>{

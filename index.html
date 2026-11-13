@@ -173,9 +173,9 @@ button:active{transform:scale(.98)}
 #exportCard .export-table td.off{background:#fdecee;color:#d64545;font-weight:800}
 #exportCard .export-table td.pend{background:#fff4d8;color:#9a6416;font-weight:800}
 #exportCard .export-note{width:100%;min-height:72px;margin-top:8px}
-#exportCard .export-week{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
-#exportCard .export-week button{flex:1 1 30%;width:auto;min-width:92px;min-height:48px;padding:12px 8px;background:#f4f7f8;color:#152c43;border:1px solid #b7c6d2;border-radius:12px;font-size:16px;font-weight:750;touch-action:manipulation}
-#exportCard #exportRange{margin:0 0 10px;padding:12px;border-radius:12px;background:#eef3f7;color:#152c43;font-size:17px;font-weight:800;line-height:1.45}
+#exportCard .export-week{display:flex;flex-wrap:nowrap;align-items:stretch;gap:6px;margin:0 0 10px;width:100%}
+#exportCard .export-week button{flex:1 1 0;width:auto;min-width:0;min-height:48px;padding:10px 4px;background:#152c43;color:#fff;border:1px solid #152c43;border-radius:12px;font-size:15px;font-weight:750;line-height:1.2;white-space:nowrap;text-align:center;touch-action:manipulation}
+#exportCard #exportRange{margin:0 0 10px;padding:12px;border-radius:12px;background:#eef3f7;color:#152c43;font-size:17px;font-weight:800;line-height:1.45;text-align:center}
 #exportCard #exportReload{min-height:48px;font-size:16px;touch-action:manipulation}
 #exportCard .export-save{margin-top:12px;padding:12px;border:1px solid #d7e0e8;border-radius:14px;background:#f8fafb}
 #exportCard .export-save[hidden]{display:none!important}
@@ -260,7 +260,7 @@ button:active{transform:scale(.98)}
 <div class="field"><label for="date2">預排日期 2（選填）</label><input id="date2" type="date"></div>
 </div>
 <div class="field" style="margin-top:10px"><label for="reason">備註（選填）</label><input id="reason" maxlength="80" placeholder="例如：家庭安排"></div>
-<p class="hint">填姓名、選日期即可送出；每次最多 2 天。一般預排假同日最多 2 人、同班別不得同休；如遇撞假，可由集團首腦或店長登入後確認核准。集團首腦與店長可自行直接排假，無須他人同意。指定禁休：2026/12/31 中班與晚班、2027/01/01 早班，一般員工不可自行預排，請洽店長安排。</p>
+<p class="hint">填姓名、選日期即可送出；每次最多 2 天。一般預排假同日最多 2 人、同班別不得同休；如遇撞假，可由集團首腦或店長登入後確認核准。集團首腦與店長可自行直接排假，無須他人同意。指定禁休：2026/12/31 中班、2027/01/01 早班，一般員工不可自行預排，請洽店長安排。</p>
 <div class="row" style="margin-top:12px"><button id="submit" class="primary">送出預排假</button><button id="clear" class="secondary">清空欄位</button></div>
 <div id="message" class="status" style="margin-top:10px" role="status">請填寫姓名及至少一個日期。</div>
 </div>
@@ -296,9 +296,9 @@ button:active{transform:scale(.98)}
 <h2>週班表圖片輸出中心</h2>
 <p class="hint">沿用上方週假表的名單、排序、休假與兼職時間。正職顯示目前頁面的固定時段，兼職顯示已儲存的上班時間。這張表只供輸出，不會改寫週假表。</p>
 <div class="export-week">
-<button type="button" id="exportPrev">上一週</button>
+<button type="button" id="exportPrev">‹ 上一週</button>
 <button type="button" id="exportThis">本週</button>
-<button type="button" id="exportNext">下一週</button>
+<button type="button" id="exportNext">下一週 ›</button>
 </div>
 <p id="exportRange"></p>
 <button type="button" id="exportReload" class="primary">載入這一週</button>
@@ -331,8 +331,8 @@ button:active{transform:scale(.98)}
 const staff = [
 {name:'顏志添（小天）',short:'小天',shift:'早班',hours:'10:00–∞',aliases:['小天','顏志添']},
 {name:'林文明',short:'文明',shift:'早班',hours:'10:00–21:00',aliases:['文明']},
-{name:'琝尹',short:'琝尹',shift:'中班',hours:'11:00–20:00',aliases:['柒柒']},
-{name:'志威',short:'志威',shift:'中班',hours:'12:00–21:00',aliases:['阿威']},
+{name:'柒柒',short:'柒柒',shift:'中班',hours:'11:00–20:00',aliases:['許堤尹','琝尹','許瑅尹','瑅尹']},
+{name:'阿威',short:'阿威',shift:'中班',hours:'12:00–21:00',aliases:['伍志威','志威']},
 {name:'林展宇',short:'展宇',shift:'中班',hours:'12:00–翌01:00',aliases:['展宇']},
 {name:'蔡語晴',short:'語晴',shift:'晚班',hours:'16:00–翌01:00',aliases:['語晴']},
 {name:'蔡依珊',short:'依珊',shift:'晚班',hours:'16:30–翌01:00',aliases:['依珊']},
@@ -348,6 +348,23 @@ function ymd(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDat
 function personByName(name){const n=String(name||'').replace(/#PT$/,'').trim();return people.find(p=>p.name===n||p.short===n||(p.aliases||[]).includes(n))||null}
 function samePerson(recordName,name){const a=personByName(recordName),b=personByName(name);if(a&&b)return a.name===b.name;return String(recordName||'')===String(name||'')}
 function canonicalName(input){return personByName(input)?.name||String(input||'').trim()}
+function personKey(name){const p=personByName(name);return p?p.name:String(name||'').trim()}
+function countPeople(list){return new Set(list.map(r=>personKey(r.name))).size}
+function visiblePeople(list){
+ const groups=new Map();
+ list.forEach(r=>{const key=personKey(r.name);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r)});
+ return [...groups.values()].map(rows=>{
+  if(rows.length===1)return rows[0];
+  const periods=new Set(rows.map(r=>r.period));
+  let period=rows[0].period;
+  if(periods.has('全天')||(periods.has('上午')&&periods.has('下午')))period='全天';
+  else if(periods.has('上午'))period='上午';
+  else if(periods.has('下午'))period='下午';
+  const pending=rows.every(r=>r.status==='pending');
+  const sample=rows.find(r=>r.status!=='pending')||rows[0];
+  return Object.assign({},sample,{period,status:pending?'pending':sample.status});
+ });
+}
 const $=id=>document.getElementById(id);
 const now=new Date(), pad=n=>String(n).padStart(2,'0'), monthNow=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
 function taipeiYearMonth(date=new Date()){
@@ -368,6 +385,7 @@ function blockedEmployeeMonth(value,date=new Date()){
 }
 weekAnchor=mondayOf(now);
 $('overviewMonth').value=monthNow; $('date1').min=employeeLeaveMin(); $('date2').min=employeeLeaveMin();
+
 const STORE_ID='db0c2643-892c-4cee-8c55-d2ec8b72b86a';
 const supabaseUrl=document.querySelector('meta[name="zdos-supabase-url"]').content;
 const supabaseKey=document.querySelector('meta[name="zdos-supabase-anon-key"]').content;
@@ -417,7 +435,8 @@ async function refreshRecords(client=cloudClient){
 }
 async function save(){renderAll()}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function shortName(name){const base=String(name||'').replace(/[（(].*?[）)]/g,'').trim();if(base.length<=2)return base||String(name||'').trim();return base.slice(-2)}
+function displayName(name){const p=personByName(name);return p&&(p.name==='柒柒'||p.name==='阿威')?p.name:String(name??'')}
+function shortName(name){const shown=displayName(name);if(shown==='柒柒'||shown==='阿威')return shown;const base=String(name||'').replace(/[（(].*?[）)]/g,'').trim();if(base.length<=2)return base||String(name||'').trim();return base.slice(-2)}
 function periodMark(period){return period==='上午'?'上':period==='下午'?'下':''}
 function shiftOf(name){return personByName(name)?.shift||'待確認'}
 function dateFmt(s){const [y,m,d]=s.split('-');return `${y}/${m}/${d}`}
@@ -437,7 +456,7 @@ function conflicts(name,date,period,ignoreId=null,opt){
  const sameDate=records.filter(r=>r.date===date&&effective(r)&&r.id!==ignoreId);
  if(sameDate.some(r=>samePerson(r.name,name)))return '你已在此日期提出預排假。';
  const allowCollision=!!(opt&&opt.allowCollision);
- if(!allowCollision&&sameDate.length>=2)return '此日期全店已有 2 人預排假，名額已滿，申請遭拒絕，請洽幹部。';
+ if(!allowCollision&&countPeople(sameDate)>=2)return '此日期全店已有 2 人預排假，名額已滿，申請遭拒絕，請洽幹部。';
  const sh=shiftOf(name);
  if(!allowCollision&&sh!=='待確認'&&sh!=='PT'&&sameDate.some(r=>shiftOf(r.name)===sh))return `${sh}已有員工預排假，同班別不能同休，申請遭拒絕，請洽幹部。`;
  if(opt&&opt.skipDayLimit)return '';
@@ -447,8 +466,8 @@ function conflicts(name,date,period,ignoreId=null,opt){
  return '';
 }
 function populate(){
- $('staffNames').innerHTML=people.map(s=>`<option value="${esc(s.short)}"></option><option value="${esc(s.name)}"></option>`).join('');
- $('mgrEmployee').innerHTML=people.map(s=>`<option value="${esc(s.name)}">${esc(s.short)}</option>`).join('');
+ $('staffNames').innerHTML=people.map(s=>`<option value="${esc(s.name)}"></option>`).join('');
+ $('mgrEmployee').innerHTML=people.map(s=>`<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
  $('roster').innerHTML=people.map((s,i)=>`<div class="entry"><div><strong>${esc(s.short)}</strong><small>${esc(s.pt?'兼職 · 依每日排定':s.hours)}</small></div><div style="min-width:130px"><select data-shift="${i}" aria-label="${esc(s.short)}班別"><option ${s.shift==='早班'?'selected':''}>早班</option><option ${s.shift==='中班'?'selected':''}>中班</option><option ${s.shift==='晚班'?'selected':''}>晚班</option><option ${s.shift==='PT'?'selected':''}>PT</option><option ${s.shift==='待確認'?'selected':''}>待確認</option></select></div></div>`).join('');
  $('roster').querySelectorAll('select').forEach(sel=>sel.addEventListener('change',()=>{people[Number(sel.dataset.shift)].shift=sel.value;renderAll()}));
 }
@@ -484,8 +503,8 @@ function renderCalendar(){
  for(let i=0;i<offset;i++)html+='<div class="calday blank" aria-hidden="true"></div>';
  const today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
  for(let d=1;d<=days;d++){
-  const date=`${yy}-${pad(mm)}-${pad(d)}`, list=(byDate[date]||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant'));
-  const names=list.map(r=>{const mark=periodMark(r.period);return `<div class="calname ${leaveClass(r)}" role="button" tabindex="0" data-name="${esc(r.name)}" data-date="${esc(r.date)}" data-period="${esc(r.period)}" data-shift="${esc(shiftOf(r.name))}" data-status="${esc(r.status)}" data-label="${esc(leaveLabel(r))}" data-reason="${esc(shownReason(r.reason))}">${esc(shortName(r.name))}${mark?`<span class="per">${mark}</span>`:''}</div>`}).join('');
+  const date=`${yy}-${pad(mm)}-${pad(d)}`, list=visiblePeople((byDate[date]||[]).slice().sort((a,b)=>displayName(a.name).localeCompare(displayName(b.name),'zh-Hant')));
+  const names=list.map(r=>{const mark=periodMark(r.period);return `<div class="calname ${leaveClass(r)}" role="button" tabindex="0" data-name="${esc(displayName(r.name))}" data-date="${esc(r.date)}" data-period="${esc(r.period)}" data-shift="${esc(shiftOf(r.name))}" data-status="${esc(r.status)}" data-label="${esc(leaveLabel(r))}" data-reason="${esc(shownReason(r.reason))}">${esc(shortName(r.name))}${mark?`<span class="per">${mark}</span>`:''}</div>`}).join('');
   html+=`<div class="calday ${date===today?'today':''}"><div class="calnum">${d}</div>${names?`<div class="calnames">${names}</div>`:''}</div>`;
  }
  let blank=0; while((offset+days+blank)%7!==0){html+='<div class="calday blank" aria-hidden="true"></div>';blank++}
@@ -495,7 +514,7 @@ function renderSelection(){$('selection').textContent=selected.length?`已選日
 function msg(t,bad){$('message').textContent=t||'請選擇員工與日期。';$('message').className='status'+(bad?' bad':t?' ok':'')}
 function blockedShiftDate(name,date){
  const shift=shiftOf(name);
- return (date==='2026-12-31'&&(shift==='中班'||shift==='晚班'))||(date==='2027-01-01'&&shift==='早班');
+ return (date==='2026-12-31'&&shift==='中班')||(date==='2027-01-01'&&shift==='早班');
 }
 async function submit(){
  const name=canonicalName($('employee').value.trim()), period=$('period').value, reason=$('reason').value.trim();
@@ -523,7 +542,7 @@ function renderOverview(){
  records.filter(r=>r.date.startsWith(mon)&&effective(r)&&(filter==='全部'||shiftOf(r.name)===filter)).forEach(r=>(byDate[r.date]??=[]).push(r));
  const dates=Object.keys(byDate).sort();
  if(!dates.length){$('overview').innerHTML='<p class="hint">本月尚無預排假紀錄。</p>';return}
- $('overview').innerHTML=dates.map(date=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(date)} · ${byDate[date].length}/2 人</strong><div class="pills" style="margin-top:7px">${byDate[date].map(r=>`<span class="pill ${leaveClass(r)}">${esc(r.name)}｜${esc(r.period)}｜${leaveLabel(r)}（${esc(shiftOf(r.name))}）</span>`).join('')}</div></div></div>`).join('');
+ $('overview').innerHTML=dates.map(date=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(date)} · ${countPeople(byDate[date])}/2 人</strong><div class="pills" style="margin-top:7px">${visiblePeople(byDate[date]).map(r=>`<span class="pill ${leaveClass(r)}">${esc(displayName(r.name))}｜${esc(r.period)}｜${leaveLabel(r)}（${esc(shiftOf(r.name))}）</span>`).join('')}</div></div></div>`).join('');
 }
 function mgrMsg(t,bad){const el=$('mgrAddMessage');if(!el)return;el.textContent=t;el.className='status'+(bad?' bad':t?' ok':'')}
 function isOwnerOrStoreManager(){return !!managerUser&&['owner','manager'].includes(String(managerUser.role||''))}
@@ -543,7 +562,7 @@ async function managerAddLeave(){
  const blocked=conflicts(name,date,period,null,{skipDayLimit:true,allowCollision:privileged});
  if(blocked){mgrMsg(blocked,true);return}
  const collision=records.filter(r=>r.date===date&&effective(r));
- const hasCollision=collision.length>0&&(collision.length>=2|| (shiftOf(name)!=='待確認'&&shiftOf(name)!=='PT'&&collision.some(r=>shiftOf(r.name)===shiftOf(name))));
+ const hasCollision=collision.length>0&&(countPeople(collision)>=2|| (shiftOf(name)!=='待確認'&&shiftOf(name)!=='PT'&&collision.some(r=>shiftOf(r.name)===shiftOf(name)&&!samePerson(r.name,name))));
  if(hasCollision&&privileged&&!confirm(`這天已有同日／同班別預排假。以${managerUser.role==='owner'?'集團首腦':'店長'}權限確認後，將直接核准 ${name} ${dateFmt(date)} ${period}。確定同休？`))return;
  const btn=$('mgrAdd');
  btn.disabled=true;
@@ -566,14 +585,14 @@ function renderManage(){
  if(!managerVerified){$('manage').innerHTML='';return}
  const arr=records.slice().sort((a,b)=>b.date.localeCompare(a.date));
  if(!arr.length){$('manage').innerHTML='<p class="hint">目前沒有申請紀錄。</p>';return}
- $('manage').innerHTML=arr.map(r=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(r.date)} · ${esc(r.name)}</strong><small>${esc(r.period)}｜${esc(shiftOf(r.name))}${shownReason(r.reason)?'｜備註：'+esc(shownReason(r.reason)):''}</small><span class="pill ${leaveClass(r)}">${leaveLabel(r)}</span></div><div style="display:flex;flex-direction:column;gap:5px;min-width:86px">${r.status==='pending'?`<button class="secondary" data-action="approved" data-id="${r.id}">核准</button><button class="danger" data-action="rejected" data-id="${r.id}">退回</button>`:''}${r.status==='approved'?`<button class="danger" data-action="cancel" data-id="${r.id}">取消假</button>`:''}<button class="danger" data-action="delete" data-id="${r.id}">刪除</button></div></div>`).join('');
+ $('manage').innerHTML=arr.map(r=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(r.date)} · ${esc(displayName(r.name))}</strong><small>${esc(r.period)}｜${esc(shiftOf(r.name))}${shownReason(r.reason)?'｜備註：'+esc(shownReason(r.reason)):''}</small><span class="pill ${leaveClass(r)}">${leaveLabel(r)}</span></div><div style="display:flex;flex-direction:column;gap:5px;min-width:86px">${r.status==='pending'?`<button class="secondary" data-action="approved" data-id="${r.id}">核准</button><button class="danger" data-action="rejected" data-id="${r.id}">退回</button>`:''}${r.status==='approved'?`<button class="danger" data-action="cancel" data-id="${r.id}">取消假</button>`:''}<button class="danger" data-action="delete" data-id="${r.id}">刪除</button></div></div>`).join('');
  $('manage').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
   const r=records.find(x=>x.id===b.dataset.id);if(!r||!managerVerified||!managerClient)return;
   b.disabled=true;
   try{
    if(b.dataset.action==='delete'){if(!confirm('確定刪除此筆紀錄？'))return;const {error}=await managerClient.from('dg_preleave_requests').delete().eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
-   else if(b.dataset.action==='cancel'){if(!confirm(`確定取消 ${r.name} ${dateFmt(r.date)} 的假？取消後不會出現在月曆。`))return;const {error}=await managerClient.from('dg_preleave_requests').update({status:'rejected',reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
-   else {if(b.dataset.action==='approved'){const privileged=isOwnerOrStoreManager();const err=conflicts(r.name,r.date,r.period,r.id,{allowCollision:privileged});if(err){alert('目前規則不允許核准：'+err);return}const others=records.filter(x=>x.date===r.date&&effective(x)&&x.id!==r.id);const collision=others.length>0&&(others.length>=2||(shiftOf(r.name)!=='待確認'&&shiftOf(r.name)!=='PT'&&others.some(x=>shiftOf(x.name)===shiftOf(r.name))));if(collision&&privileged&&!confirm(`此申請與其他員工撞假。由${managerUser.role==='owner'?'集團首腦':'店長'}確認後仍核准同休，確定嗎？`))return}const {error}=await managerClient.from('dg_preleave_requests').update({status:b.dataset.action,reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
+   else if(b.dataset.action==='cancel'){if(!confirm(`確定取消 ${displayName(r.name)} ${dateFmt(r.date)} 的假？取消後不會出現在月曆。`))return;const {error}=await managerClient.from('dg_preleave_requests').update({status:'rejected',reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
+   else {if(b.dataset.action==='approved'){const privileged=isOwnerOrStoreManager();const err=conflicts(r.name,r.date,r.period,r.id,{allowCollision:privileged});if(err){alert('目前規則不允許核准：'+err);return}const others=records.filter(x=>x.date===r.date&&effective(x)&&x.id!==r.id);const collision=others.length>0&&(countPeople(others)>=2||(shiftOf(r.name)!=='待確認'&&shiftOf(r.name)!=='PT'&&others.some(x=>shiftOf(x.name)===shiftOf(r.name)&&!samePerson(x.name,r.name))));if(collision&&privileged&&!confirm(`此申請與其他員工撞假。由${managerUser.role==='owner'?'集團首腦':'店長'}確認後仍核准同休，確定嗎？`))return}const {error}=await managerClient.from('dg_preleave_requests').update({status:b.dataset.action,reviewed_by:managerUser.id,reviewed_at:new Date().toISOString()}).eq('id',r.id).eq('store_id',STORE_ID);if(error)throw error}
    await refreshRecords(managerClient);
   }catch(e){alert('雲端更新失敗：'+(e.message||'請稍後再試'))}finally{b.disabled=false}
  }));
@@ -598,7 +617,7 @@ function posterCell(person,date){
  const mark=leaveMark(person,date);
  if(mark) return {text:mark.text,kind:mark.pending?'pend':'off'};
  if(person.pt) return {text:ptHour(person,date)||'',kind:'pt'};
- return {text:person.hours||'',kind:'work'};
+ return {text:'',kind:'work'};
 }
 function syncExportEntry(){
  const btn=document.querySelector('.dock [data-go="exportCard"]');

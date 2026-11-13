@@ -328,8 +328,11 @@ function showPtHourStatus(text){
  el.textContent=text;
 }
 function refreshPtEditRight(){
- const role=String(managerUser&&managerUser.role||'');
- canEditPtHours=!!(managerVerified&&managerClient&&managerUser&&managerUser.is_active===true&&(role==='owner'||(role==='manager'&&managerDgMember)));
+ const user=managerUser;
+ const role=String(user&&user.role||'');
+ const active=!!(managerVerified&&managerClient&&user&&user.is_active===true);
+ const designatedPtEditor=!!(active&&managerDgMember&&role==='supervisor'&&String(user.id||'').toLowerCase()==='72afca49-99c4-4225-8ca6-5c1d815ef267'&&String(user.employee_no||'').trim().toUpperCase()==='DG012602');
+ canEditPtHours=!!(active&&(role==='owner'||(role==='manager'&&managerDgMember)||designatedPtEditor));
 }
 async function refreshRecords(client=cloudClient){
  const {data,error}=await client.from('dg_preleave_requests').select('id,employee_name,leave_date,leave_period,reason,status,submitted_at,reviewed_by,reviewed_at').eq('store_id',STORE_ID).order('leave_date').order('submitted_at');

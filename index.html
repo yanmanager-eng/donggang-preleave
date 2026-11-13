@@ -173,6 +173,14 @@ button:active{transform:scale(.98)}
 #exportCard .export-table td.off{background:#fdecee;color:#d64545;font-weight:800}
 #exportCard .export-table td.pend{background:#fff4d8;color:#9a6416;font-weight:800}
 #exportCard .export-note{width:100%;min-height:72px;margin-top:8px}
+#exportCard .export-week{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+#exportCard .export-week button{flex:1 1 30%;width:auto;min-width:92px;min-height:48px;padding:12px 8px;background:#f4f7f8;color:#152c43;border:1px solid #b7c6d2;border-radius:12px;font-size:16px;font-weight:750;touch-action:manipulation}
+#exportCard #exportRange{margin:0 0 10px;padding:12px;border-radius:12px;background:#eef3f7;color:#152c43;font-size:17px;font-weight:800;line-height:1.45}
+#exportCard #exportReload{min-height:48px;font-size:16px;touch-action:manipulation}
+#exportCard .export-save{margin-top:12px;padding:12px;border:1px solid #d7e0e8;border-radius:14px;background:#f8fafb}
+#exportCard .export-save[hidden]{display:none!important}
+#exportCard .export-save img{display:block;width:100%;height:auto;background:#fff;border-radius:8px}
+#exportCard .export-save button{width:auto;min-height:44px;margin-top:8px}
 #monthCard,#leaveCard,#managerCard,#weekSheet{scroll-margin-top:12px;scroll-margin-bottom:110px}
 @media(min-width:761px){
  body{padding:24px 24px 40px}
@@ -287,13 +295,13 @@ button:active{transform:scale(.98)}
 <section class="card view-hidden" id="exportCard">
 <h2>週班表圖片輸出中心</h2>
 <p class="hint">沿用上方週假表的名單、排序、休假與兼職時間。正職顯示目前頁面的固定時段，兼職顯示已儲存的上班時間。這張表只供輸出，不會改寫週假表。</p>
-<div class="sheet-nav">
+<div class="export-week">
 <button type="button" id="exportPrev">上一週</button>
 <button type="button" id="exportThis">本週</button>
 <button type="button" id="exportNext">下一週</button>
-<button type="button" id="exportReload" class="primary">載入資料</button>
 </div>
-<p id="exportRange" style="margin:12px 0 8px;font-weight:750;color:#152c43"></p>
+<p id="exportRange"></p>
+<button type="button" id="exportReload" class="primary">載入這一週</button>
 <div style="overflow-x:auto"><table class="export-table"><thead id="exportHead"></thead><tbody id="exportBody"></tbody></table></div>
 <label for="exportNotice">公告文字</label>
 <textarea id="exportNotice" class="export-note" maxlength="180" placeholder="可輸入本週公告，會印在圖片上方。"></textarea>
@@ -304,6 +312,11 @@ button:active{transform:scale(.98)}
 <button type="button" id="exportShare" class="secondary">分享圖片</button>
 </div>
 <div id="exportStatus" class="status" style="margin-top:10px" role="status"></div>
+<div id="exportSave" class="export-save" hidden>
+<p id="exportSaveText" class="hint"></p>
+<img id="exportSaveImg" alt="週班表圖片，可長按儲存">
+<button type="button" id="exportSaveClose">關閉圖片</button>
+</div>
 </section>
 <nav class="dock" aria-label="主要導覽">
 <button type="button" data-go="monthCard" class="on"><span class="nav-icon">▦</span><span>月曆總覽</span></button>
@@ -575,7 +588,7 @@ function renderExport(){
  if(!canEditPtHours){$('exportBody').innerHTML='';$('exportHead').innerHTML='';$('exportRange').textContent='';return}
  const days=exportDates(), wd=['日','一','二','三','四','五','六'];
  const end=days[6];
- $('exportRange').textContent=`${days[0].getFullYear()}年${days[0].getMonth()+1}月${days[0].getDate()}日（週${wd[days[0].getDay()]}）－${end.getMonth()+1}月${end.getDate()}日（週${wd[end.getDay()]}）`;
+ $('exportRange').textContent=`${days[0].getFullYear()}年${days[0].getMonth()+1}月${days[0].getDate()}日（週${wd[days[0].getDay()]}）至${end.getFullYear()}年${end.getMonth()+1}月${end.getDate()}日（週${wd[end.getDay()]}）`;
  $('exportHead').innerHTML=`<tr><th class="who">姓名</th><th>班別</th>${days.map(d=>`<th>${d.getMonth()+1}/${d.getDate()}<br>週${wd[d.getDay()]}</th>`).join('')}</tr>`;
  $('exportBody').innerHTML=people.map(p=>`<tr class="${p.pt?'pt':'full'}"><td class="who">${esc(p.short)}</td><td>${esc(p.pt?'兼職':p.shift)}</td>${days.map(d=>{const cell=posterCell(p,ymd(d));return `<td class="${cell.kind==='off'||cell.kind==='pend'?cell.kind:''}">${esc(cell.text)}</td>`}).join('')}</tr>`).join('');
 }
@@ -667,22 +680,56 @@ function drawWeekPoster(kind){
  });
  return canvas;
 }
+function iosDevice(){
+ const ua=navigator.userAgent||'';
+ return /iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+}
+function showExportImage(dataUrl,message){
+ $('exportSaveText').textContent=message;
+ $('exportSaveImg').src=dataUrl;
+ $('exportSave').hidden=false;
+ $('exportSave').scrollIntoView({block:'nearest'});
+}
+function saveExportPng(canvas,filename,label){
+ let dataUrl='';
+ try{dataUrl=canvas.toDataURL('image/png')}catch(_){dataUrl=''}
+ if(!dataUrl){$('exportStatus').textContent='圖片沒有產生，請稍後再試。';$('exportStatus').className='status bad';return}
+ if(iosDevice()){
+  showExportImage(dataUrl,'請長按圖片，選擇「儲存影像」。這個按鈕不會開啟其他 App。');
+  $('exportStatus').textContent=label+'已準備好，請長按圖片儲存。';
+  $('exportStatus').className='status ok';
+  return;
+ }
+ try{
+  const a=document.createElement('a');
+  a.href=dataUrl;a.download=filename;a.rel='noopener';
+  document.body.appendChild(a);a.click();a.remove();
+ }catch(_){
+  showExportImage(dataUrl,'瀏覽器沒有開始下載。請長按圖片儲存。');
+  $('exportStatus').textContent='下載沒有開始，請改用長按圖片儲存。';
+  $('exportStatus').className='status bad';
+  return;
+ }
+ $('exportStatus').textContent='已開始下載'+label+'。';
+ $('exportStatus').className='status ok';
+}
 async function outputPoster(kind,share){
  if(!canEditPtHours) return;
  const canvas=drawWeekPoster(kind);
- const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
- if(!blob){$('exportStatus').textContent='圖片沒有產生，請稍後再試。';$('exportStatus').className='status bad';return}
+ const label=kind==='a4'?'A4 橫式':kind==='line'?'LINE 手機版':'高清 PNG';
  const filename=`donggang-week-${kind}.png`;
- if(share&&navigator.share){
-  const file=new File([blob],filename,{type:'image/png'});
-  if(!navigator.canShare||navigator.canShare({files:[file]})){
-   try{await navigator.share({files:[file],title:'東港店週班表'});$('exportStatus').textContent='已開啟分享。';$('exportStatus').className='status ok';return}
-   catch(e){if(e&&e.name==='AbortError')return}
-  }
+ if(!share){saveExportPng(canvas,filename,label);return}
+ let blob=null;
+ try{blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'))}catch(_){blob=null}
+ if(!blob){$('exportStatus').textContent='圖片沒有產生，請稍後再試。';$('exportStatus').className='status bad';return}
+ const file=new File([blob],filename,{type:'image/png'});
+ if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){
+  try{await navigator.share({files:[file],title:'東港店週班表'});$('exportStatus').textContent='已開啟分享。';$('exportStatus').className='status ok';return}
+  catch(e){if(e&&e.name==='AbortError')return}
  }
- download(filename,blob,'image/png');
- $('exportStatus').textContent=`已下載${kind==='a4'?' A4 橫式':kind==='line'?' LINE 手機版':'高清 PNG'}。`;
- $('exportStatus').className='status ok';
+ showExportImage(canvas.toDataURL('image/png'),'分享沒有完成。請長按圖片儲存，不會自動開啟其他 App。');
+ $('exportStatus').textContent='分享沒有完成，請長按圖片儲存。';
+ $('exportStatus').className='status';
 }
 function renderWeek(){
  const days=weekDates(), end=days[6], wd=['日','一','二','三','四','五','六'];
@@ -851,10 +898,34 @@ $('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await
 $('weekPrev').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,-7);renderWeek()});
 $('weekNext').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,7);renderWeek()});
 $('weekThis').addEventListener('click',()=>{weekAnchor=mondayOf(new Date());selectedOffset=null;renderWeek()});
-$('exportPrev').addEventListener('click',()=>{if(!canEditPtHours)return;exportWeekAnchor=addDays(exportDates()[0],-7);renderExport()});
-$('exportNext').addEventListener('click',()=>{if(!canEditPtHours)return;exportWeekAnchor=addDays(exportDates()[0],7);renderExport()});
-$('exportThis').addEventListener('click',()=>{if(!canEditPtHours)return;exportWeekAnchor=mondayOf(new Date());renderExport()});
-$('exportReload').addEventListener('click',async()=>{if(!canEditPtHours)return;try{await refreshRecords(managerClient||cloudClient);$('exportStatus').textContent='已載入這一週的休假與兼職時間。';$('exportStatus').className='status ok'}catch(e){$('exportStatus').textContent='載入失敗：'+(e.message||'請稍後再試');$('exportStatus').className='status bad'}});
+function shiftExportWeek(step){
+ if(!canEditPtHours)return;
+ const sheet=$('weekRange').textContent;
+ exportWeekAnchor=step==null?mondayOf(new Date()):addDays(exportDates()[0],step);
+ renderExport();
+ $('exportStatus').textContent=`預覽已換成${$('exportRange').textContent}。表格是這一週的休假與上班時間，原本的週假表日期沒有改變。`;
+ $('exportStatus').className='status';
+ if($('weekRange').textContent!==sheet){$('weekRange').textContent=sheet}
+}
+$('exportPrev').addEventListener('click',()=>shiftExportWeek(-7));
+$('exportNext').addEventListener('click',()=>shiftExportWeek(7));
+$('exportThis').addEventListener('click',()=>shiftExportWeek(null));
+$('exportReload').addEventListener('click',async()=>{
+ if(!canEditPtHours)return;
+ const sheet=$('weekRange').textContent;
+ const btn=$('exportReload');
+ btn.disabled=true;
+ try{
+  const flags=await refreshRecords(managerClient||cloudClient);
+  renderExport();
+  if($('weekRange').textContent!==sheet)$('weekRange').textContent=sheet;
+  const range=$('exportRange').textContent;
+  if(flags&&flags.ptError){$('exportStatus').textContent=`休假已重新讀取：${range}。兼職時間讀取失敗。`;$('exportStatus').className='status bad'}
+  else {$('exportStatus').textContent=`已重新讀取並顯示：${range}`;$('exportStatus').className='status ok'}
+ }catch(e){$('exportStatus').textContent='載入失敗：'+(e.message||'請稍後再試');$('exportStatus').className='status bad'}
+ finally{btn.disabled=false}
+});
+$('exportSaveClose').addEventListener('click',()=>{$('exportSave').hidden=true;$('exportSaveImg').removeAttribute('src')});
 $('exportHd').addEventListener('click',()=>outputPoster('hd',false));
 $('exportA4').addEventListener('click',()=>outputPoster('a4',false));
 $('exportLine').addEventListener('click',()=>outputPoster('line',false));

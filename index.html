@@ -260,7 +260,7 @@ button:active{transform:scale(.98)}
 <div class="field"><label for="date2">預排日期 2（選填）</label><input id="date2" type="date"></div>
 </div>
 <div class="field" style="margin-top:10px"><label for="reason">備註（選填）</label><input id="reason" maxlength="80" placeholder="例如：家庭安排"></div>
-<p class="hint">填姓名、選日期即可送出；每次最多 2 天。一般預排假同日最多 2 人、同班別不得同休；如遇撞假，可由集團首腦或店長登入後確認核准。集團首腦與店長可自行直接排假，無須他人同意。指定禁休：2026/12/31 中班、2027/01/01 早班，一般員工不可自行預排，請洽店長安排。</p>
+<p class="hint">填姓名、選日期即可送出；每次最多 2 天。一般預排假同日最多 2 人、同班別不得同休；如遇撞假，可由集團首腦或店長登入後確認核准。集團首腦與店長可自行直接排假，無須他人同意。指定禁休：2026/12/31 中班與晚班、2027/01/01 早班，一般員工不可自行預排，請洽店長安排。</p>
 <div class="row" style="margin-top:12px"><button id="submit" class="primary">送出預排假</button><button id="clear" class="secondary">清空欄位</button></div>
 <div id="message" class="status" style="margin-top:10px" role="status">請填寫姓名及至少一個日期。</div>
 </div>
@@ -514,7 +514,7 @@ function renderSelection(){$('selection').textContent=selected.length?`已選日
 function msg(t,bad){$('message').textContent=t||'請選擇員工與日期。';$('message').className='status'+(bad?' bad':t?' ok':'')}
 function blockedShiftDate(name,date){
  const shift=shiftOf(name);
- return (date==='2026-12-31'&&shift==='中班')||(date==='2027-01-01'&&shift==='早班');
+ return (date==='2026-12-31'&&(shift==='中班'||shift==='晚班'))||(date==='2027-01-01'&&shift==='早班');
 }
 async function submit(){
  const name=canonicalName($('employee').value.trim()), period=$('period').value, reason=$('reason').value.trim();

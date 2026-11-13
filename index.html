@@ -220,7 +220,8 @@ button:active{transform:scale(.98)}
 <div id="dayCards"></div>
 </div>
 <div class="sheet-scroll"><table class="sheet-table"><colgroup id="weekCols"></colgroup><thead id="weekHead"></thead><tbody id="weekBody"></tbody></table></div>
-<p class="sheet-note">粉色是已核准的休，黃色是還沒核准。空白代表該班出勤。兼職上班時間由幹部登入後填：手機點當天卡片，電腦填在藍底格子。有休假的日子不能改成上班。</p>
+<p class="sheet-note">粉色是已核准的休，黃色是還沒核准。空白代表該班出勤。兼職上班時間由集團擁有者或東港店店長登入後填：手機點當天卡片，電腦填在藍底格子。有休假的日子不能改成上班。</p>
+<p id="ptHourStatus" class="status" hidden role="status"></p>
 </section>
 <div class="card" id="monthCard">
 <h2>全體員工預排假總覽</h2>
@@ -310,10 +311,45 @@ const STORE_ID='db0c2643-892c-4cee-8c55-d2ec8b72b86a';
 const supabaseUrl=document.querySelector('meta[name="zdos-supabase-url"]').content;
 const supabaseKey=document.querySelector('meta[name="zdos-supabase-anon-key"]').content;
 const cloudClient=window.supabase.createClient(supabaseUrl,supabaseKey,{auth:{persistSession:false,autoRefreshToken:false}});
-let selected=[], records=[], managerVerified=false, managerClient=null, managerUser=null, cloudReady=false;
+let selected=[], records=[], managerVerified=false, managerClient=null, managerUser=null, managerDgMember=false, canEditPtHours=false, cloudReady=false;
 function mapRecord(r){return {id:r.id,name:r.employee_name,date:r.leave_date,period:r.leave_period,reason:r.reason||'',status:r.status,createdAt:r.submitted_at,reviewedBy:r.reviewed_by||null,reviewedAt:r.reviewed_at||null}}
 function isPtRow(r){return String(r.name||'').endsWith('#PT')}
-async function refreshRecords(client=cloudClient){const {data,error}=await client.from('dg_preleave_requests').select('id,employee_name,leave_date,leave_period,reason,status,submitted_at,reviewed_by,reviewed_at').eq('store_id',STORE_ID).order('leave_date').order('submitted_at');if(error)throw error;const all=(data||[]).map(mapRecord);ptRows=all.filter(isPtRow);records=all.filter(r=>!isPtRow(r));cloudReady=true;renderAll()}
+function isPtTableMissing(error){
+ const code=String(error&&error.code||'');
+ const text=String(error&&error.message||'');
+ return code==='PGRST205'||code==='42P01'||/schema cache/i.test(text)||/Could not find the table/i.test(text);
+}
+function showPtHourStatus(text){
+ const el=$('ptHourStatus');
+ if(!el)return;
+ if(!text){el.hidden=true;el.textContent='';el.className='status';return}
+ el.hidden=false;
+ el.className='status bad';
+ el.textContent=text;
+}
+function refreshPtEditRight(){
+ const role=String(managerUser&&managerUser.role||'');
+ canEditPtHours=!!(managerVerified&&managerClient&&managerUser&&managerUser.is_active===true&&(role==='owner'||(role==='manager'&&managerDgMember)));
+}
+async function refreshRecords(client=cloudClient){
+ const {data,error}=await client.from('dg_preleave_requests').select('id,employee_name,leave_date,leave_period,reason,status,submitted_at,reviewed_by,reviewed_at').eq('store_id',STORE_ID).order('leave_date').order('submitted_at');
+ if(error)throw error;
+ const all=(data||[]).map(mapRecord);
+ records=all.filter(r=>!isPtRow(r));
+ const pt=await client.from('dg_pt_work_hours').select('id,employee_name,work_date,hours_text').eq('store_id',STORE_ID).order('work_date');
+ if(pt.error){
+  ptRows=[];
+  cloudReady=true;
+  renderAll();
+  showPtHourStatus(isPtTableMissing(pt.error)?'兼職上班時間資料表尚未建立，目前無法讀取或儲存上班時間。休假資料不受影響，舊資料也不會被刪除。':'兼職上班時間讀取失敗：'+(pt.error.message||'請稍後再試')+'。休假資料不受影響。');
+  return {ptError:pt.error};
+ }
+ ptRows=(pt.data||[]).map(r=>({id:r.id,name:r.employee_name,date:r.work_date,reason:String(r.hours_text||'').trim()}));
+ showPtHourStatus('');
+ cloudReady=true;
+ renderAll();
+ return {ptError:null};
+}
 async function save(){renderAll()}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function shortName(name){const base=String(name||'').replace(/[（(].*?[）)]/g,'').trim();if(base.length<=2)return base||String(name||'').trim();return base.slice(-2)}
@@ -496,7 +532,7 @@ function renderWeek(){
  $('weekBody').innerHTML=people.map(p=>`<tr class="${p.pt?'pt':''}"><td class="name">${esc(p.short)}</td><td class="hours">${esc(p.pt?'依每日排定':p.hours)}</td>${days.map(d=>{
   const date=ymd(d), mark=leaveMark(p,date), todayCls=date===today?' today':'';
   if(mark) return `<td class="${mark.pending?'pend':'off'}${todayCls}" title="${esc(mark.title)}">${esc(mark.text)}</td>`;
-  if(p.pt&&managerVerified){const hour=ptHour(p,date);return `<td class="ptset${todayCls}"><input class="pt-time" data-pt="${esc(p.name)}" data-date="${date}" value="${esc(hour)}" placeholder="時間" aria-label="${esc(p.short)} ${date} 上班時間"></td>`}
+  if(p.pt&&canEditPtHours){const hour=ptHour(p,date);return `<td class="ptset${todayCls}"><input class="pt-time" data-pt="${esc(p.name)}" data-date="${date}" value="${esc(hour)}" placeholder="時間" aria-label="${esc(p.short)} ${date} 上班時間"></td>`}
   if(p.pt){const hour=ptHour(p,date);return `<td class="${hour?'ptset':''}${todayCls}">${hour?esc(hour):''}</td>`}
   return `<td class="${todayCls.trim()}"></td>`;
  }).join('')}</tr>`).join('');
@@ -524,7 +560,7 @@ function renderDayBoard(){
    const label=mark.pending?'待核准':'已核准';
    return `<article class="staffcard ${p.pt?'pt ':''}${mark.pending?'pend':'off'}"><div><strong>${esc(p.short)}</strong><small>${esc(shift)}</small></div><div class="state">${label}<br>${esc(mark.text)}</div></article>`;
   }
-  if(p.pt&&managerVerified){
+  if(p.pt&&canEditPtHours){
    return `<article class="staffcard pt"><div><strong>${esc(p.short)}</strong><small>兼職・點卡片填上班時間</small></div><input class="pt-time" data-pt="${esc(p.name)}" data-date="${date}" value="${esc(hour)}" placeholder="16:00–22:00" aria-label="${esc(p.short)} ${date} 上班時間"></article>`;
   }
   if(p.pt){
@@ -534,7 +570,8 @@ function renderDayBoard(){
  }).join('');
 }
 async function savePtHour(name,date,raw){
- if(!managerVerified||!managerClient) return;
+ refreshPtEditRight();
+ if(!canEditPtHours){alert('只有集團擁有者或東港店店長可以修改兼職上班時間。');return}
  const person=personByName(name);
  if(person&&leaveMark(person,date)){alert('這天已有休假（已核准或待核准），不能再排上班時間。');return}
  const hour=String(raw||'').trim().replace(/-/g,'–').slice(0,24);
@@ -544,26 +581,31 @@ async function savePtHour(name,date,raw){
  inputs.forEach(el=>{el.disabled=true});
  ptSaving.add(key);
  try{
-  const {data,error}=await managerClient.from('dg_preleave_requests').select('id').eq('store_id',STORE_ID).eq('employee_name',name+'#PT').eq('leave_date',date);
-  if(error) throw error;
-  const rows=data||[];
+  const employeeName=person?person.name:String(name||'').replace(/#PT$/,'').trim();
+  const row={store_id:STORE_ID,employee_name:employeeName,work_date:date,hours_text:hour,updated_by:managerUser.id};
+  const existing=await managerClient.from('dg_pt_work_hours').select('id').eq('store_id',STORE_ID).eq('employee_name',employeeName).eq('work_date',date).limit(1);
+  if(existing.error) throw existing.error;
   if(!hour){
-   if(!rows.length){inputs.forEach(el=>{el.disabled=false});return}
-   const {error:delError}=await managerClient.from('dg_preleave_requests').delete().eq('store_id',STORE_ID).eq('employee_name',name+'#PT').eq('leave_date',date);
+   const {error:delError}=await managerClient.from('dg_pt_work_hours').delete().eq('store_id',STORE_ID).eq('employee_name',employeeName).eq('work_date',date).select('id');
    if(delError) throw delError;
-  }else if(rows.length){
-   const {error:updError}=await managerClient.from('dg_preleave_requests').update({reason:hour,status:'rejected'}).eq('id',rows[0].id).eq('store_id',STORE_ID);
+  }else if(existing.data&&existing.data.length){
+   const {data:updated,error:updError}=await managerClient.from('dg_pt_work_hours').update({hours_text:hour,updated_by:managerUser.id}).eq('id',existing.data[0].id).eq('store_id',STORE_ID).select('id');
    if(updError) throw updError;
-   if(rows.length>1){
-    const {error:extraError}=await managerClient.from('dg_preleave_requests').delete().in('id',rows.slice(1).map(r=>r.id)).eq('store_id',STORE_ID);
-    if(extraError) throw extraError;
-   }
+   if(!updated||!updated.length) throw new Error('沒有權限修改這筆兼職上班時間。');
   }else{
-   const {error:insError}=await managerClient.from('dg_preleave_requests').insert({store_id:STORE_ID,employee_name:name+'#PT',leave_date:date,leave_period:'全天',reason:hour,status:'rejected'});
-   if(insError) throw insError;
+   const {data:inserted,error:insError}=await managerClient.from('dg_pt_work_hours').insert(row).select('id');
+   if(insError&&insError.code==='23505'){
+    const {data:updated,error:updError}=await managerClient.from('dg_pt_work_hours').update({hours_text:hour,updated_by:managerUser.id}).eq('store_id',STORE_ID).eq('employee_name',employeeName).eq('work_date',date).select('id');
+    if(updError) throw updError;
+    if(!updated||!updated.length) throw new Error('沒有權限修改這筆兼職上班時間。');
+   }else if(insError) throw insError;
+   else if(!inserted||!inserted.length) throw new Error('沒有權限新增這筆兼職上班時間。');
   }
   await refreshRecords(managerClient);
- }catch(e){alert('兼職時間沒有存進雲端：'+(e.message||'請稍後再試'));inputs.forEach(el=>{el.disabled=false})}
+ }catch(e){
+  alert(isPtTableMissing(e)?'兼職時間的雲端資料表尚未建立，這筆沒有寫入休假申請。':'兼職時間沒有存進雲端：'+(e.message||'請稍後再試'));
+  inputs.forEach(el=>{el.disabled=false});
+ }
  finally{ptSaving.delete(key)}
 }
 function renderAll(){renderWeek();renderCalendar();renderOverview();renderManage()}
@@ -630,19 +672,19 @@ async function managerLogin(){
   if(memberError)throw new Error('無法確認門市權限，請稍後再試。');
   const canDG=(members||[]).some(m=>String(m.stores?.code||'').toUpperCase()==='DG'&&m.stores?.is_active!==false);
   if(!canDG&&profile.role!=='owner')throw new Error('此帳號沒有東港店管理權限。');
-  managerVerified=true; managerUser=profile;
+  managerVerified=true; managerUser=profile; managerDgMember=canDG; refreshPtEditRight();
   addManagerSelfOption();
   $('managerLogin').hidden=true; $('managerPanel').hidden=false;
   $('managerIdentity').textContent=`已驗證：${profile.display_name||profile.employee_no}｜${({owner:'集團首腦',manager:'店長',supervisor:'領班',trainee_manager:'實習幹部'})[profile.role]||profile.role}`;
   await refreshRecords(managerClient);msg.textContent='驗證成功，雲端資料已載入。';msg.className='status ok';renderManage();
  }catch(e){
   try{if(managerClient)await managerClient.auth.signOut()}catch(_){}
-  managerVerified=false;managerUser=null;msg.textContent=e.message||'登入失敗，請稍後再試。';msg.className='status bad';
+  managerVerified=false;managerUser=null;managerDgMember=false;canEditPtHours=false;msg.textContent=e.message||'登入失敗，請稍後再試。';msg.className='status bad';
  }finally{btn.disabled=false;btn.textContent='登入'}
 }
 $('managerLoginBtn').addEventListener('click',managerLogin);
 $('managerPassword').addEventListener('keydown',e=>{if(e.key==='Enter')managerLogin()});
-$('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderWeek();renderManage()});
+$('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;managerDgMember=false;canEditPtHours=false;$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderWeek();renderManage()});
 $('weekPrev').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,-7);renderWeek()});
 $('weekNext').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,7);renderWeek()});
 $('weekThis').addEventListener('click',()=>{weekAnchor=mondayOf(new Date());selectedOffset=null;renderWeek()});
@@ -709,7 +751,7 @@ $('import').addEventListener('change',async e=>{
 });
 function download(name,data,type){const a=document.createElement('a');const url=URL.createObjectURL(new Blob([data],{type}));a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 populate();renderAll();
-refreshRecords().then(()=>{msg('雲端連線成功，預排紀錄已同步。')}).catch(e=>{msg('雲端連線失敗，尚未送出任何資料：'+(e.message||'請稍後重試'),true)});
+refreshRecords().then(flags=>{if(flags&&flags.ptError){msg('休假資料已同步。兼職上班時間請看週假表的提示。');return}msg('雲端連線成功，預排紀錄已同步。')}).catch(e=>{msg('雲端連線失敗，尚未送出任何資料：'+(e.message||'請稍後重試'),true)});
 })();
 </script>
 </body></html>

@@ -350,8 +350,24 @@ function samePerson(recordName,name){const a=personByName(recordName),b=personBy
 function canonicalName(input){return personByName(input)?.name||String(input||'').trim()}
 const $=id=>document.getElementById(id);
 const now=new Date(), pad=n=>String(n).padStart(2,'0'), monthNow=`${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+function taipeiYearMonth(date=new Date()){
+ const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit'}).formatToParts(date);
+ return {year:Number(parts.find(part=>part.type==='year').value),month:Number(parts.find(part=>part.type==='month').value)};
+}
+function employeeLeaveMin(date=new Date()){
+ const {year,month}=taipeiYearMonth(date);
+ const nextMonth=month===12?1:month+1, nextYear=month===12?year+1:year;
+ return `${nextYear}-${pad(nextMonth)}-01`;
+}
+function blockedEmployeeMonth(value,date=new Date()){
+ const match=/^(\d{4})-(\d{2})-\d{2}$/.exec(String(value||''));
+ if(!match) return true;
+ const y=Number(match[1]), m=Number(match[2]);
+ const {year,month}=taipeiYearMonth(date);
+ return y<year||(y===year&&m<=month);
+}
 weekAnchor=mondayOf(now);
-$('overviewMonth').value=monthNow; $('date1').min=monthNow+'-01'; $('date2').min=monthNow+'-01';
+$('overviewMonth').value=monthNow; $('date1').min=employeeLeaveMin(); $('date2').min=employeeLeaveMin();
 const STORE_ID='db0c2643-892c-4cee-8c55-d2ec8b72b86a';
 const supabaseUrl=document.querySelector('meta[name="zdos-supabase-url"]').content;
 const supabaseKey=document.querySelector('meta[name="zdos-supabase-anon-key"]').content;
@@ -482,6 +498,7 @@ async function submit(){
  const dates=[$('date1').value,$('date2').value].filter(Boolean).filter((d,i,a)=>a.indexOf(d)===i).sort();
  if(!name){msg('請填寫員工姓名。',true);return}
  if(!dates.length){msg('請至少選擇一個日期。',true);return}
+ if(dates.some(date=>blockedEmployeeMonth(date))){msg('不能預排本月或過去月份的假期，請選擇下個月以後的日期。本月臨時休假請洽店長處理。',true);return}
  if(dates.length>2){msg('每次最多預排 2 天，請洽幹部。',true);return}
  for(const date of dates){const error=conflicts(name,date,period);if(error){msg(`${dateFmt(date)}：${error}`,true);return}}
  try{

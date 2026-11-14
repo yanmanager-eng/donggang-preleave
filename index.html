@@ -26,7 +26,7 @@ h2{font-size:18px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repea
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:130px}
 label{font-size:13px;color:#52606b}select,input,button{font:inherit;border-radius:10px;border:1px solid #cbd4da;padding:11px;background:#fff;color:#20252b;width:100%}
 button{cursor:pointer;font-weight:650}.primary{background:#183b32;color:#fff;border-color:#183b32}.secondary{background:#eef3f0;border-color:#d7e2dc}.danger{background:#fff1f0;color:#9c2b24;border-color:#f0c4c0}
-.hint{font-size:13px;line-height:1.6;color:#5d6872}.status{padding:11px;border-radius:10px;background:#f2f5f7;font-size:14px;line-height:1.55}.status.ok{background:#eaf6ef;color:#1f6a3b}.status.bad{background:#fff0ef;color:#9c2b24}
+.hint{font-size:13px;line-height:1.6;color:#5d6872}.hint p{margin:0}.hint ul{margin:6px 0 0;padding-left:1.15em}.hint li{margin:2px 0}.status{padding:11px;border-radius:10px;background:#f2f5f7;font-size:14px;line-height:1.55}.status.ok{background:#eaf6ef;color:#1f6a3b}.status.bad{background:#fff0ef;color:#9c2b24}
 .pills{display:flex;gap:6px;flex-wrap:wrap}.pill{display:inline-flex;border-radius:99px;padding:5px 9px;background:#eef2f4;font-size:12px}.pill.pending{background:#fff3d9;color:#79521b}.pill.approved{background:#e5f6e9;color:#17653a}.pill.rejected{background:#ffe9e7}.pill.manager{background:#d6ebff;color:#0b4f93}
 table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:9px 6px;border-bottom:1px solid #e6eaed;vertical-align:top}th{color:#53616c;font-weight:600}
 .entry{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:11px 0;border-bottom:1px solid #edf0f2}.entry:last-child{border-bottom:0}.entry strong{display:block}.entry small{display:block;color:#68737d;margin-top:4px}
@@ -238,13 +238,14 @@ button:active{transform:scale(.98)}
 <div id="dayCards"></div>
 </div>
 <div class="sheet-scroll"><table class="sheet-table"><colgroup id="weekCols"></colgroup><thead id="weekHead"></thead><tbody id="weekBody"></tbody></table></div>
-<p class="sheet-note">粉色是已核准的休，黃色是還沒核准。空白代表該班出勤。兼職上班時間由集團擁有者或東港店店長登入後填：手機點當天卡片，電腦填在藍底格子。有休假的日子不能改成上班。</p>
+<p class="sheet-note" id="weekNoteStaff">粉色是已核准的休，黃色是還沒核准。空白代表該班出勤。兼職人員依每日排定時間出勤，請以當週班表為準。</p>
+<p class="sheet-note" id="weekNoteManager" hidden>粉色是已核准的休，黃色是還沒核准。空白代表該班出勤。兼職上班時間由集團擁有者或東港店店長登入後填：手機點當天卡片，電腦填在藍底格子。有休假的日子不能改成上班。</p>
 <p id="ptHourStatus" class="status" hidden role="status"></p>
 </section>
 <div class="card" id="monthCard">
 <h2>全體員工預排假總覽</h2>
 <div class="row"><div class="field"><label for="overviewMonth">查看月份</label><input id="overviewMonth" type="month"></div><div class="field"><label for="filterShift">班別篩選</label><select id="filterShift"><option value="全部">全部班別</option><option value="早班">早班</option><option value="中班">中班</option><option value="晚班">晚班</option><option value="待確認">待確認</option></select></div></div>
-<div class="legend"><span class="lmanager">藍色：幹部排假</span><span class="lapproved">綠色：已核准</span><span class="lpending">黃色：未核准／待審核</span></div>
+<div class="legend"><span class="lmanager" id="legendManager" hidden>藍色：幹部排假</span><span class="lapproved">綠色：已核准</span><span class="lpending">黃色：未核准／待審核</span></div>
 <div id="calendar" class="monthcal" aria-live="polite"></div>
 <div id="calpop" class="calpop" hidden role="dialog" aria-label="預排假明細"></div>
 <h3 style="font-size:15px;margin:18px 0 8px">本月預排假明細</h3><div id="overview"></div>
@@ -260,7 +261,7 @@ button:active{transform:scale(.98)}
 <div class="field"><label for="date2">預排日期 2（選填）</label><input id="date2" type="date"></div>
 </div>
 <div class="field" style="margin-top:10px"><label for="reason">備註（選填）</label><input id="reason" maxlength="80" placeholder="例如：家庭安排"></div>
-<p class="hint">填姓名、選日期即可送出；每次最多 2 天。一般預排假同日最多 2 人、同班別不得同休；如遇撞假，可由集團首腦或店長登入後確認核准。集團首腦與店長可自行直接排假，無須他人同意。指定禁休：2026/12/31 中班與晚班、2027/01/01 早班，一般員工不可自行預排，請洽店長安排。</p>
+<div class="hint" id="leaveHint"><p>請填寫本人姓名、選擇預排時段及日期。</p><ul><li>每次最多預排 2 天。</li><li>每人每月最多預排 2 天。</li><li>同一天最多 2 人預排，同班別不可同時休假。</li><li>只能預排下個月及之後的日期。</li><li>2026/12/31 中班、晚班及 2027/01/01 早班為指定禁休日，請洽店長安排。</li><li>如遇名額已滿或其他限制，請洽店長協助。</li></ul></div>
 <div class="row" style="margin-top:12px"><button id="submit" class="primary">送出預排假</button><button id="clear" class="secondary">清空欄位</button></div>
 <div id="message" class="status" style="margin-top:10px" role="status">請填寫姓名及至少一個日期。</div>
 </div>
@@ -268,7 +269,7 @@ button:active{transform:scale(.98)}
 <h2>幹部管理</h2>
 <div id="managerLogin">
  <div class="row"><div class="field"><label for="managerEmpNo">ZDOS 工號</label><input id="managerEmpNo" autocomplete="username" placeholder="輸入 ZDOS 工號"></div><div class="field"><label for="managerPassword">ZDOS 密碼</label><input id="managerPassword" type="password" autocomplete="current-password" placeholder="輸入 ZDOS 密碼"></div></div>
- <div class="row" style="margin-top:10px"><button id="managerLoginBtn" class="primary">登入</button></div><div id="managerAuthMessage" class="status" style="margin-top:10px" role="status">登入後才能新增假、取消假與審核。</div>
+ <div class="row" style="margin-top:10px"><button id="managerLoginBtn" class="primary">登入</button></div><div id="managerAuthMessage" class="status" style="margin-top:10px" role="status">管理功能需登入後使用。</div>
 </div>
 <div id="managerPanel" hidden>
  <div class="status ok" id="managerIdentity" style="margin-bottom:10px"></div>
@@ -451,6 +452,16 @@ function managerScheduled(r){
 function shownReason(reason){return String(reason||'').replace(/^【幹部排】/,'')}
 function leaveClass(r){return managerScheduled(r)?'manager':(r.status==='approved'?'approved':'pending')}
 function leaveLabel(r){return managerScheduled(r)?'幹部排假':statusName(r.status)}
+function staffAudience(){return !managerVerified}
+function audienceLeaveClass(r){const cls=leaveClass(r);return staffAudience()&&cls==='manager'?'approved':cls}
+function audienceLeaveLabel(r){return staffAudience()&&managerScheduled(r)?statusName(r.status):leaveLabel(r)}
+function syncAudienceCopy(){
+ const staff=staffAudience();
+ const staffNote=$('weekNoteStaff'),mgrNote=$('weekNoteManager'),legend=$('legendManager');
+ if(staffNote)staffNote.hidden=!staff;
+ if(mgrNote)mgrNote.hidden=staff;
+ if(legend)legend.hidden=staff;
+}
 function effective(r){return r.status!=='rejected'}
 function conflicts(name,date,period,ignoreId=null,opt){
  const sameDate=records.filter(r=>r.date===date&&effective(r)&&r.id!==ignoreId);
@@ -487,7 +498,7 @@ function showPop(chip,mode){
  if(mode==='toggle'&&popPinned&&popAnchor===chip&&!$('calpop').hidden){hidePop();return}
  popPinned=mode!=='hover';
  popAnchor=chip;
- const reason=chip.dataset.reason||'';
+ const reason=managerVerified?(chip.dataset.reason||''):'';
  const label=chip.dataset.label||statusName(chip.dataset.status);
  $('calpop').innerHTML=`<div class="calpop-date">${esc(dateFmt(chip.dataset.date))}</div><strong>${esc(chip.dataset.name||'')}</strong><div class="calpop-meta">${esc(chip.dataset.shift||'')} · ${esc(chip.dataset.period||'')} · ${esc(label)}</div>${reason?`<div class="calpop-note">備註：${esc(reason)}</div>`:''}`;
  $('calpop').hidden=false;
@@ -504,11 +515,12 @@ function renderCalendar(){
  const today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
  for(let d=1;d<=days;d++){
   const date=`${yy}-${pad(mm)}-${pad(d)}`, list=visiblePeople((byDate[date]||[]).slice().sort((a,b)=>displayName(a.name).localeCompare(displayName(b.name),'zh-Hant')));
-  const names=list.map(r=>{const mark=periodMark(r.period);return `<div class="calname ${leaveClass(r)}" role="button" tabindex="0" data-name="${esc(displayName(r.name))}" data-date="${esc(r.date)}" data-period="${esc(r.period)}" data-shift="${esc(shiftOf(r.name))}" data-status="${esc(r.status)}" data-label="${esc(leaveLabel(r))}" data-reason="${esc(shownReason(r.reason))}">${esc(shortName(r.name))}${mark?`<span class="per">${mark}</span>`:''}</div>`}).join('');
+  const names=list.map(r=>{const mark=periodMark(r.period);const reasonAttr=managerVerified?` data-reason="${esc(shownReason(r.reason))}"`:'';return `<div class="calname ${audienceLeaveClass(r)}" role="button" tabindex="0" data-name="${esc(displayName(r.name))}" data-date="${esc(r.date)}" data-period="${esc(r.period)}" data-shift="${esc(shiftOf(r.name))}" data-status="${esc(r.status)}" data-label="${esc(audienceLeaveLabel(r))}"${reasonAttr}>${esc(shortName(r.name))}${mark?`<span class="per">${mark}</span>`:''}</div>`}).join('');
   html+=`<div class="calday ${date===today?'today':''}"><div class="calnum">${d}</div>${names?`<div class="calnames">${names}</div>`:''}</div>`;
  }
  let blank=0; while((offset+days+blank)%7!==0){html+='<div class="calday blank" aria-hidden="true"></div>';blank++}
- $('calendar').innerHTML=`<div class="grid">${html}</div><p class="hint">整月班表直接寫在日期格子裡。例如 11/1 顏志添休，該格顯示「志添」。點名字會浮出完整姓名、班別、時段與備註。全天只寫名字；上午、下午會加「上」「下」。藍色是幹部直接排的假，綠色是已核准的員工申請，黃色是待審核。</p>`;
+ const calHint=staffAudience()?'整月班表直接寫在日期格子裡。點名字會顯示完整姓名、班別、休假時段與狀態。全天只寫名字；上午、下午會加「上」「下」。綠色是已核准，黃色是待審核。':'整月班表直接寫在日期格子裡。例如 11/1 顏志添休，該格顯示「志添」。點名字會浮出完整姓名、班別、時段與備註。全天只寫名字；上午、下午會加「上」「下」。藍色是幹部直接排的假，綠色是已核准的員工申請，黃色是待審核。';
+ $('calendar').innerHTML=`<div class="grid">${html}</div><p class="hint">${calHint}</p>`;
 }
 function renderSelection(){$('selection').textContent=selected.length?`已選日期：${selected.map(dateFmt).join('、')}（${selected.length}/2 天）`:'尚未選擇日期。'}
 function msg(t,bad){$('message').textContent=t||'請選擇員工與日期。';$('message').className='status'+(bad?' bad':t?' ok':'')}
@@ -542,7 +554,7 @@ function renderOverview(){
  records.filter(r=>r.date.startsWith(mon)&&effective(r)&&(filter==='全部'||shiftOf(r.name)===filter)).forEach(r=>(byDate[r.date]??=[]).push(r));
  const dates=Object.keys(byDate).sort();
  if(!dates.length){$('overview').innerHTML='<p class="hint">本月尚無預排假紀錄。</p>';return}
- $('overview').innerHTML=dates.map(date=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(date)} · ${countPeople(byDate[date])}/2 人</strong><div class="pills" style="margin-top:7px">${visiblePeople(byDate[date]).map(r=>`<span class="pill ${leaveClass(r)}">${esc(displayName(r.name))}｜${esc(r.period)}｜${leaveLabel(r)}（${esc(shiftOf(r.name))}）</span>`).join('')}</div></div></div>`).join('');
+ $('overview').innerHTML=dates.map(date=>`<div class="entry"><div style="flex:1"><strong>${dateFmt(date)} · ${countPeople(byDate[date])}/2 人</strong><div class="pills" style="margin-top:7px">${visiblePeople(byDate[date]).map(r=>staffAudience()?`<span class="pill ${audienceLeaveClass(r)}">${esc(displayName(r.name))}｜${esc(r.period)}｜${esc(audienceLeaveLabel(r))}</span>`:`<span class="pill ${leaveClass(r)}">${esc(displayName(r.name))}｜${esc(r.period)}｜${leaveLabel(r)}（${esc(shiftOf(r.name))}）</span>`).join('')}</div></div></div>`).join('');
 }
 function mgrMsg(t,bad){const el=$('mgrAddMessage');if(!el)return;el.textContent=t;el.className='status'+(bad?' bad':t?' ok':'')}
 function isOwnerOrStoreManager(){return !!managerUser&&['owner','manager'].includes(String(managerUser.role||''))}
@@ -608,7 +620,7 @@ function leaveMark(person,date){
   else if(periods.has('上午')) text='上休';
   else if(periods.has('下午')) text='下休';
  }
- return {text,pending:list.every(r=>r.status==='pending'),title:list.map(r=>`${leaveLabel(r)} · ${r.period}`).join('、')};
+ return {text,pending:list.every(r=>r.status==='pending'),title:list.map(r=>`${audienceLeaveLabel(r)} · ${r.period}`).join('、')};
 }
 function ptHour(person,date){const row=ptRows.find(r=>r.date===date&&personByName(r.name)?.name===person.name);return row?String(row.reason||'').trim():''}
 let exportWeekAnchor=null;
@@ -859,7 +871,7 @@ async function savePtHour(name,date,raw){
  }
  finally{ptSaving.delete(key)}
 }
-function renderAll(){renderWeek();renderCalendar();renderOverview();renderManage();renderExport()}
+function renderAll(){syncAudienceCopy();renderWeek();renderCalendar();renderOverview();renderManage();renderExport()}
 /* 與 ZDOS 正式雲端登入（AUTH-004）同一套工號→Auth Email 規則；不可改用本機 store_accounts 明文密碼。 */
 const AUTH004_NEW_EMP_NO_RE=/^[A-Za-z]{2}\d{6}$/;
 const AUTH004_BETA_TEST_EMP_NO_RE=/^T\d{4}$/i;
@@ -935,7 +947,7 @@ async function managerLogin(){
 }
 $('managerLoginBtn').addEventListener('click',managerLogin);
 $('managerPassword').addEventListener('keydown',e=>{if(e.key==='Enter')managerLogin()});
-$('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;managerDgMember=false;canEditPtHours=false;syncExportEntry();$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderWeek();renderManage()});
+$('managerLogout').addEventListener('click',async()=>{try{if(managerClient)await managerClient.auth.signOut()}catch(_){}managerVerified=false;managerUser=null;managerDgMember=false;canEditPtHours=false;syncExportEntry();$('managerPanel').hidden=true;$('managerLogin').hidden=false;$('managerPassword').value='';$('managerAuthMessage').textContent='已登出幹部管理。';$('managerAuthMessage').className='status';renderAll()});
 $('weekPrev').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,-7);renderWeek()});
 $('weekNext').addEventListener('click',()=>{weekAnchor=addDays(weekAnchor,7);renderWeek()});
 $('weekThis').addEventListener('click',()=>{weekAnchor=mondayOf(new Date());selectedOffset=null;renderWeek()});
